@@ -1,0 +1,287 @@
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* ------------------------------------------------------------------ */
+/* Color system — light (default) and dark, as "R G B" triplets       */
+/* ------------------------------------------------------------------ */
+
+:root {
+	/* App-wide defaults used by Tailwind utilities and direct CSS */
+	--background: 245 248 246;
+	--foreground: 18 36 31;
+
+	--color-bg: #f5f8f6; /* #F5F8F6 */
+	--color-bg-rgb: 245 248 246;
+	--color-surface: #ffffff; /* #FFFFFF */
+	--color-surface-rgb: 255 255 255;
+	--color-surface-2: #eaf1ec; /* #EAF1EC */
+	--color-surface-2-rgb: 234 241 236;
+	--color-ink: #12241f; /* #12241F */
+	--color-ink-rgb: 18 36 31;
+	--color-ink-muted: #55685f; /* #55685F */
+	--color-ink-muted-rgb: 85 104 95;
+	--color-ink-faint: #5c6f66; /* #5C6F66 — 5.0:1 on bg */
+	--color-ink-faint-rgb: 92 111 102;
+	--color-brand: #1c4a40; /* #1C4A40 */
+	--color-brand-rgb: 28 74 64;
+	--color-brand-deep: #0f332b; /* #0F332B */
+	--color-brand-deep-rgb: 15 51 43;
+	--color-accent: #e8583f; /* #E8583F — decorative use only */
+	--color-accent-rgb: 232 88 63;
+	--color-accent-strong: #c2472e; /* #C2472E — text use, 4.5:1+ */
+	--color-accent-strong-rgb: 194 71 46;
+	--color-gold: #a97624; /* #A97624 — 3.7:1 on white */
+	--color-gold-rgb: 169 118 36;
+	--color-line: #dce6e0; /* #DCE6E0 */
+	--color-line-rgb: 220 230 224;
+	--color-line-strong: #718878; /* #718878 — 3.6:1 */
+	--color-line-strong-rgb: 113 136 120;
+
+	/* Fixed tokens for content sitting on the always-dark brand-deep panel */
+	--color-chip: #f5f8f6; /* #F5F8F6 */
+	--color-chip-rgb: 245 248 246;
+	--color-onbrand: #eaf1ec; /* #EAF1EC */
+	--color-onbrand-rgb: 234 241 236;
+	--color-onbrand-muted: #9fc2b6; /* #9FC2B6 */
+	--color-onbrand-muted-rgb: 159 194 182;
+	--color-onbrand-accent: #7fc4ae; /* #7FC4AE */
+	--color-onbrand-accent-rgb: 127 196 174;
+
+	/* Font aliases that Tailwind utilities expect */
+	--font-geist-sans: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+	--font-geist-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+	--font-serif: "Instrument Serif", Georgia, serif;
+}
+
+.dark {
+	--background: 11 21 18;
+	--foreground: 234 243 238;
+
+	--color-bg: #0b1512; /* #0B1512 */
+	--color-bg-rgb: 11 21 18;
+	--color-surface: #12211c; /* #12211C */
+	--color-surface-rgb: 18 33 28;
+	--color-surface-2: #182922; /* #182922 */
+	--color-surface-2-rgb: 24 41 34;
+	--color-ink: #eaf3ee; /* #EAF3EE */
+	--color-ink-rgb: 234 243 238;
+	--color-ink-muted: #a9c0b4; /* #A9C0B4 */
+	--color-ink-muted-rgb: 169 192 180;
+	--color-ink-faint: #83988c; /* #83988C */
+	--color-ink-faint-rgb: 131 152 140;
+	--color-brand: #5fc1a3; /* #5FC1A3 — brightened so it still reads on a dark page */
+	--color-brand-rgb: 95 193 163;
+	--color-brand-deep: #163229; /* #163229 — elevated panel, lighter than page bg */
+	--color-brand-deep-rgb: 22 50 41;
+	--color-accent: #ff7a5c; /* #FF7A5C */
+	--color-accent-rgb: 255 122 92;
+	--color-accent-strong: #ff9478; /* #FF9478 */
+	--color-accent-strong-rgb: 255 148 120;
+	--color-gold: #e0ac55; /* #E0AC55 */
+	--color-gold-rgb: 224 172 85;
+	--color-line: #223832; /* #223832 */
+	--color-line-rgb: 34 56 50;
+	--color-line-strong: #4a6459; /* #4A6459 */
+	--color-line-strong-rgb: 74 100 89;
+
+	/* Chip/on-brand tokens stay fixed — the panel they sit on is already dark
+     in both themes, so the same light content keeps working. */
+	--color-chip: #f5f8f6;
+	--color-chip-rgb: 245 248 246;
+	--color-onbrand: #eaf1ec;
+	--color-onbrand-rgb: 234 241 236;
+	--color-onbrand-muted: #9fc2b6;
+	--color-onbrand-muted-rgb: 159 194 182;
+	--color-onbrand-accent: #7fc4ae;
+	--color-onbrand-accent-rgb: 127 196 174;
+}
+
+@theme {
+	--font-sans: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+	--font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+	--font-serif: "Instrument Serif", Georgia, serif;
+
+	--color-bg: #f5f8f6;
+	--color-surface: #ffffff;
+	--color-surface-2: #eaf1ec;
+	--color-ink: #12241f;
+	--color-ink-muted: #55685f;
+	--color-ink-faint: #5c6f66;
+	--color-brand: #1c4a40;
+	--color-brand-deep: #0f332b;
+	--color-accent: #e8583f;
+	--color-accent-strong: #c2472e;
+	--color-gold: #a97624;
+	--color-line: #dce6e0;
+	--color-line-strong: #718878;
+	--color-chip: #f5f8f6;
+	--color-onbrand: #eaf1ec;
+	--color-onbrand-muted: #9fc2b6;
+	--color-onbrand-accent: #7fc4ae;
+}
+
+@theme inline {
+	--color-background: var(--color-bg);
+	--color-foreground: var(--color-ink);
+	--color-card: var(--color-surface);
+	--color-card-foreground: var(--color-ink);
+	--color-popover: var(--color-surface);
+	--color-popover-foreground: var(--color-ink);
+	--color-primary: var(--color-brand);
+	--color-primary-foreground: var(--color-chip);
+	--color-secondary: var(--color-surface-2);
+	--color-secondary-foreground: var(--color-ink);
+	--color-muted: var(--color-surface-2);
+	--color-muted-foreground: var(--color-ink-muted);
+	--color-accent-foreground: var(--color-ink);
+	--color-destructive: var(--color-accent-strong);
+	--color-border: var(--color-line);
+	--color-input: var(--color-line);
+	--color-ring: var(--color-brand);
+	--radius-sm: calc(0.625rem - 4px);
+	--radius-md: calc(0.625rem - 2px);
+	--radius-lg: 0.625rem;
+	--radius-xl: calc(0.625rem + 4px);
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--background: 11 21 18;
+		--foreground: 234 243 238;
+	}
+}
+
+/* ------------------------------------------------------------------ */
+/* Base layer                                                          */
+/* ------------------------------------------------------------------ */
+
+@layer base {
+	* {
+		box-sizing: border-box;
+	}
+
+	body {
+		@apply bg-bg text-ink font-sans antialiased;
+	}
+
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	:focus-visible {
+		@apply outline outline-2 outline-accent outline-offset-[3px] rounded;
+	}
+}
+
+/* ------------------------------------------------------------------ */
+/* A few genuinely bespoke effects — not utility-shaped                */
+/* ------------------------------------------------------------------ */
+
+@layer components {
+	/* Faint graph-paper texture behind the hero, masked to a soft ellipse */
+	.grid-texture {
+		background-image:
+			linear-gradient(rgb(var(--color-line)) 1px, transparent 1px),
+			linear-gradient(
+				90deg,
+				rgb(var(--color-line)) 1px,
+				transparent 1px
+			);
+		background-size: 44px 44px;
+		opacity: 0.45;
+		-webkit-mask-image: radial-gradient(
+			ellipse 60% 55% at 50% 30%,
+			black 0%,
+			transparent 72%
+		);
+		mask-image: radial-gradient(
+			ellipse 60% 55% at 50% 30%,
+			black 0%,
+			transparent 72%
+		);
+	}
+
+	/* Pulse-line SVG path starts fully hidden so the draw-in animation reads */
+	.pulse-path {
+		stroke-dasharray: 2000;
+		stroke-dashoffset: 2000;
+	}
+
+	@keyframes pulse-draw {
+		from {
+			stroke-dashoffset: 2000;
+		}
+		to {
+			stroke-dashoffset: 0;
+		}
+	}
+
+	.animate-draw {
+		animation: pulse-draw 1.2s ease-out forwards;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation: none !important;
+		transition: none !important;
+	}
+}
+
+@media print {
+	@page {
+		size: A4 portrait;
+		margin: 14mm;
+	}
+
+	body {
+		background: #fff !important;
+		color: #111 !important;
+	}
+
+	.print-report-shell {
+		display: block !important;
+		height: auto !important;
+		min-height: 0 !important;
+		overflow: visible !important;
+	}
+
+	.print-report-content {
+		display: block !important;
+		height: auto !important;
+		max-width: none !important;
+		overflow: visible !important;
+		padding: 0 !important;
+	}
+
+	[data-print-report] {
+		margin: 0 !important;
+		border: 0 !important;
+		padding: 0 !important;
+	}
+
+	[data-print-report],
+	[data-print-report] * {
+		color: #111 !important;
+		background-color: transparent !important;
+		border-color: #ccc !important;
+		box-shadow: none !important;
+	}
+
+	[data-print-report] .overflow-x-auto {
+		overflow: visible !important;
+	}
+
+	.print-report-table {
+		width: 100% !important;
+		min-width: 0 !important;
+		font-size: 9pt !important;
+	}
+
+	.print-report-table tr {
+		break-inside: avoid;
+	}
+}

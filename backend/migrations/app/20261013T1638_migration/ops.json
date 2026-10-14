@@ -1,0 +1,577 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.Appointment",
+    "label": "Create table \"Appointment\"",
+    "summary": "Creates table \"Appointment\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Appointment"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Appointment\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Appointment\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Appointment\"",
+        "sql": "CREATE TABLE \"public\".\"Appointment\" (\n  \"appointmentDate\" timestamptz NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdBy\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"endTime\" timestamptz NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startTime\" timestamptz NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Appointment_status_check_f18c6e1d\" CHECK (\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followup'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Appointment\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Appointment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Clinic",
+    "label": "Create table \"Clinic\"",
+    "summary": "Creates table \"Clinic\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Clinic"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Clinic\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Clinic\"",
+        "sql": "CREATE TABLE \"public\".\"Clinic\" (\n  \"address\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"email\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"logo\" text,\n  \"name\" text NOT NULL,\n  \"ownerId\" character(36) NOT NULL,\n  \"phone\" text NOT NULL,\n  \"status\" text DEFAULT 'inActive' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Clinic_status_check_db0e9a2b\" CHECK (\"status\" IN ('active', 'inActive', 'suspended'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Clinic\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Doctor",
+    "label": "Create table \"Doctor\"",
+    "summary": "Creates table \"Doctor\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Doctor"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Doctor\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Doctor\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Doctor\"",
+        "sql": "CREATE TABLE \"public\".\"Doctor\" (\n  \"bio\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"consultationDuration\" text NOT NULL,\n  \"consultationFee\" numeric NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"licenseNumber\" text NOT NULL,\n  \"specialty\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"userId\" character(36) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Doctor_status_check_db0e9a2b\" CHECK (\"status\" IN ('active', 'inActive', 'suspended'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Doctor\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Doctor\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.DoctorSchedule",
+    "label": "Create table \"DoctorSchedule\"",
+    "summary": "Creates table \"DoctorSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "DoctorSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"DoctorSchedule\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"DoctorSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"DoctorSchedule\"",
+        "sql": "CREATE TABLE \"public\".\"DoctorSchedule\" (\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dayOfWeek\" int4 NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"effectiveFrom\" timestamptz NOT NULL,\n  \"effectiveTo\" timestamptz NOT NULL,\n  \"endTime\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"isActive\" bool DEFAULT false NOT NULL,\n  \"isAvailable\" bool DEFAULT false NOT NULL,\n  \"slotDuration\" int4 NOT NULL,\n  \"startTime\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"DoctorSchedule\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"DoctorSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.File",
+    "label": "Create table \"File\"",
+    "summary": "Creates table \"File\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "File"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"File\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"File\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"File\"",
+        "sql": "CREATE TABLE \"public\".\"File\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"mimeType\" text NOT NULL,\n  \"ownerId\" character(36) NOT NULL,\n  \"publicId\" text NOT NULL,\n  \"relatedId\" character(36) NOT NULL,\n  \"relatedTo\" character(36) NOT NULL,\n  \"size\" text NOT NULL,\n  \"type\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"url\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"File\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"File\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.MedicalRecord",
+    "label": "Create table \"MedicalRecord\"",
+    "summary": "Creates table \"MedicalRecord\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "MedicalRecord"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"MedicalRecord\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"MedicalRecord\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"MedicalRecord\"",
+        "sql": "CREATE TABLE \"public\".\"MedicalRecord\" (\n  \"appointmentId\" character(36) NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"diagnosis\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"examination\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"symptoms\" text NOT NULL,\n  \"treatment\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"MedicalRecord\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"MedicalRecord\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Notification",
+    "label": "Create table \"Notification\"",
+    "summary": "Creates table \"Notification\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Notification"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Notification\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Notification\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Notification\"",
+        "sql": "CREATE TABLE \"public\".\"Notification\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"data\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"isRead\" bool NOT NULL,\n  \"message\" text NOT NULL,\n  \"readAt\" timestamp NOT NULL,\n  \"recepientId\" character(36) NOT NULL,\n  \"title\" text NOT NULL,\n  \"type\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Notification\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Notification\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Patient",
+    "label": "Create table \"Patient\"",
+    "summary": "Creates table \"Patient\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Patient\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Patient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Patient\"",
+        "sql": "CREATE TABLE \"public\".\"Patient\" (\n  \"address\" text NOT NULL,\n  \"allergies\" text NOT NULL,\n  \"bloodType\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" text NOT NULL,\n  \"email\" text,\n  \"emergencyContact\" text NOT NULL,\n  \"firstName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"lastName\" text NOT NULL,\n  \"phone\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Patient_gender_check_6679dc61\" CHECK (\"gender\" IN ('male', 'female')),\n  CONSTRAINT \"Patient_status_check_b116ce31\" CHECK (\"status\" IN ('upcoming', 'waiting', 'in_room', 'complete'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Patient\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Patient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Prescription",
+    "label": "Create table \"Prescription\"",
+    "summary": "Creates table \"Prescription\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Prescription"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Prescription\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Prescription\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Prescription\"",
+        "sql": "CREATE TABLE \"public\".\"Prescription\" (\n  \"appointmentId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"medications\" text NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Prescription\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Prescription\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.User",
+    "label": "Create table \"User\"",
+    "summary": "Creates table \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"User\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"User\"",
+        "sql": "CREATE TABLE \"public\".\"User\" (\n  \"avatar\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"email\" text NOT NULL,\n  \"firstName\" text,\n  \"id\" character(36) NOT NULL,\n  \"lastLoginAt\" timestamptz,\n  \"lastName\" text,\n  \"password\" text NOT NULL,\n  \"phone\" text,\n  \"role\" text NOT NULL,\n  \"status\" text DEFAULT 'inActive' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"User_role_check_4e043948\" CHECK (\"role\" IN ('admin', 'receptionist', 'doctor', 'patient')),\n  CONSTRAINT \"User_status_check_db0e9a2b\" CHECK (\"status\" IN ('active', 'inActive', 'suspended'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"User\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"User\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Clinic.Clinic_email_key",
+    "label": "Add unique constraint on \"Clinic\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Clinic_email_key",
+        "table": "Clinic"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Clinic_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Clinic_email_key",
+          "public",
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Clinic_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"Clinic\" ADD CONSTRAINT \"Clinic_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Clinic_email_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Clinic_email_key",
+          "public",
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Clinic.Clinic_ownerId_key",
+    "label": "Add unique constraint on \"Clinic\" (ownerId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Clinic_ownerId_key",
+        "table": "Clinic"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Clinic_ownerId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Clinic_ownerId_key",
+          "public",
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Clinic_ownerId_key\"",
+        "sql": "ALTER TABLE \"public\".\"Clinic\" ADD CONSTRAINT \"Clinic_ownerId_key\" UNIQUE (\"ownerId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Clinic_ownerId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Clinic_ownerId_key",
+          "public",
+          "\"public\".\"Clinic\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Patient.Patient_email_key",
+    "label": "Add unique constraint on \"Patient\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Patient_email_key",
+        "table": "Patient"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Patient_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Patient_email_key",
+          "public",
+          "\"public\".\"Patient\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Patient_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"Patient\" ADD CONSTRAINT \"Patient_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Patient_email_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Patient_email_key",
+          "public",
+          "\"public\".\"Patient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.User.User_email_key",
+    "label": "Add unique constraint on \"User\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "User_email_key",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"User_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"User_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD CONSTRAINT \"User_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"User_email_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "User_email_key",
+          "public",
+          "\"public\".\"User\""
+        ]
+      }
+    ]
+  }
+]
