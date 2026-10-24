@@ -40,6 +40,10 @@
       "model": "Prescription",
       "namespace": "public"
     },
+    "Receptionist": {
+      "model": "Receptionist",
+      "namespace": "public"
+    },
     "User": {
       "model": "User",
       "namespace": "public"
@@ -445,6 +449,21 @@
                 },
                 "to": {
                   "model": "Patient",
+                  "namespace": "public"
+                }
+              },
+              "receptionists": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "clinicId"
+                  ]
+                },
+                "to": {
+                  "model": "Receptionist",
                   "namespace": "public"
                 }
               },
@@ -1440,6 +1459,27 @@
                   "kind": "scalar"
                 }
               },
+              "archivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "archivedBy": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "archivedReason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "bloodType": {
                 "nullable": false,
                 "type": {
@@ -1519,6 +1559,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "last_visit_at": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamp-temporal@1",
                   "kind": "scalar"
                 }
               },
@@ -1636,6 +1683,15 @@
                 "allergies": {
                   "column": "allergies"
                 },
+                "archivedAt": {
+                  "column": "archivedAt"
+                },
+                "archivedBy": {
+                  "column": "archivedBy"
+                },
+                "archivedReason": {
+                  "column": "archivedReason"
+                },
                 "bloodType": {
                   "column": "bloodType"
                 },
@@ -1665,6 +1721,9 @@
                 },
                 "lastName": {
                   "column": "lastName"
+                },
+                "last_visit_at": {
+                  "column": "last_visit_at"
                 },
                 "phone": {
                   "column": "phone"
@@ -1832,6 +1891,125 @@
               "table": "Prescription"
             }
           },
+          "Receptionist": {
+            "fields": {
+              "clinicId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "user_status",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              }
+            },
+            "relations": {
+              "clinic": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "clinicId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Clinic",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "clinicId": {
+                  "column": "clinicId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Receptionist"
+            }
+          },
           "User": {
             "fields": {
               "avatar": {
@@ -1950,6 +2128,22 @@
                   "model": "Clinic",
                   "namespace": "public"
                 }
+              },
+              "receptionist": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "userId"
+                  ]
+                },
+                "to": {
+                  "model": "Receptionist",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -2007,8 +2201,8 @@
             "Appointment": {
               "checks": [
                 {
-                  "expression": "\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followup')",
-                  "name": "Appointment_status_check_f18c6e1d",
+                  "expression": "\"status\" IN ('scheduled', 'confirmed', 'checkedIn', 'inProgress', 'completed', 'cancelled', 'noShow', 'rescheduled')",
+                  "name": "Appointment_status_check_4ddfd9ea",
                   "prefix": "Appointment_status_check"
                 }
               ],
@@ -2659,8 +2853,8 @@
                   "prefix": "Patient_gender_check"
                 },
                 {
-                  "expression": "\"status\" IN ('upcoming', 'waiting', 'in_room', 'complete')",
-                  "name": "Patient_status_check_b116ce31",
+                  "expression": "\"status\" IN ('new', 'active', 'inActive', 'archived')",
+                  "name": "Patient_status_check_cbf3b7f6",
                   "prefix": "Patient_status_check"
                 }
               ],
@@ -2674,6 +2868,21 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "archivedAt": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true
+                },
+                "archivedBy": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "archivedReason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "bloodType": {
                   "codecId": "pg/text@1",
@@ -2741,6 +2950,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "last_visit_at": {
+                  "codecId": "pg/timestamp-temporal@1",
+                  "nativeType": "timestamp",
+                  "nullable": true
+                },
                 "phone": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -2748,6 +2962,10 @@
                 },
                 "status": {
                   "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "new"
+                  },
                   "nativeType": "text",
                   "nullable": false,
                   "valueSet": {
@@ -2845,6 +3063,80 @@
                 ]
               },
               "uniques": []
+            },
+            "Receptionist": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('active', 'inActive', 'suspended')",
+                  "name": "Receptionist_status_check_db0e9a2b",
+                  "prefix": "Receptionist_status_check"
+                }
+              ],
+              "columns": {
+                "clinicId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "user_status",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId"
+                  ]
+                }
+              ]
             },
             "User": {
               "checks": [
@@ -2965,10 +3257,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "bd1b170eb05f9e8b27633ba23daa986966e2c14c378d459a9842caaa1f3e2d2f"
+    "storageHash": "e35c3dfeedf211ba826cc2e5e3afd0b83627b2d2385f231d57429589b74376de"
   },
   "execution": {
-    "executionHash": "c2892e0e700fa3bd9359213e1b70db555ed9c505c086e4eddbd438c01bb05c21",
+    "executionHash": "4ef01b44c4589d80a949d1ba7f484d23a036b2b7e53c865b47722bba3daee1fd",
     "mutations": {
       "defaults": [
         {
@@ -3203,6 +3495,32 @@
             "column": "updatedAt",
             "namespace": "public",
             "table": "Prescription"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv7",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "Receptionist"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "Receptionist"
           }
         },
         {

@@ -1,8 +1,11 @@
 "use client";
 
 import { startTransition, useEffect, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
 import { useRouter } from "next/navigation";
 import {
+	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
 	LoaderCircle,
@@ -22,6 +25,11 @@ import { useCreateAppointment } from "@/api/hooks/Appointments";
 import { useDoctorOptions } from "@/api/hooks/Doctors";
 import { patientSchema } from "@/api/schemas/patientSchema";
 import { getApiErrorMessage } from "@/api/services/clinicService";
+import { getDoctorAvailability } from "@/api/services/doctorsService";
+import {
+	getDoctorSchedulesForDoctor,
+	type DoctorSchedule,
+} from "@/api/services/doctorScheduleService";
 import type { Patient } from "@/api/services/patientService";
 import { PatientField } from "@/components/patients/PatientField";
 import { PatientTable } from "@/components/patients/PatientTable";
@@ -37,6 +45,7 @@ import {
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
 	Dialog,
 	DialogContent,
@@ -47,6 +56,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import {
 	Select,
 	SelectContent,
@@ -71,6 +85,8 @@ export default function Patients() {
 	const [appointmentForm, setAppointmentForm] = useState<AppointmentForm>(
 		defaultAppointmentForm,
 	);
+	const [appointmentCalendarOpen, setAppointmentCalendarOpen] =
+		useState(false);
 	const [form, setForm] = useState<PatientForm>(defaultPatientForm);
 	const [formErrors, setFormErrors] = useState<PatientFormErrors>({});
 	const [page, setPage] = useState(1);
@@ -91,6 +107,58 @@ export default function Patients() {
 	} = useDoctorOptions();
 	const { mutate: submitAppointment, isPending: isCreatingAppointment } =
 		useCreateAppointment();
+	const schedulesQuery = useQuery({
+		queryKey: ["doctor-schedules", appointmentForm.doctorId],
+		queryFn: ({ signal }) =>
+			getDoctorSchedulesForDoctor(appointmentForm.doctorId, signal),
+		enabled:
+			patientForAppointment !== null &&
+			Boolean(appointmentForm.doctorId),
+	});
+	const schedules = schedulesQuery.data ?? [];
+	const isDateScheduled = (dateValue: string) => {
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) return false;
+		const [year, month, day] = dateValue.split("-").map(Number);
+		const dayOfWeek = new Date(
+			Date.UTC(year, month - 1, day),
+		).getUTCDay();
+
+		return schedules.some((schedule: DoctorSchedule) => {
+			const effectiveFrom = schedule.effectiveFrom.slice(0, 10);
+			const effectiveTo = schedule.effectiveTo.slice(0, 10);
+			return (
+				schedule.isAvailable &&
+				schedule.isActive &&
+				schedule.dayOfWeek === dayOfWeek &&
+				dateValue >= effectiveFrom &&
+				dateValue <= effectiveTo
+			);
+		});
+	};
+	const availabilityQuery = useQuery({
+		queryKey: [
+			"doctor-availability",
+			appointmentForm.doctorId,
+			appointmentForm.appointmentDate,
+		],
+		queryFn: ({ signal }) =>
+			getDoctorAvailability(
+				appointmentForm.doctorId,
+				appointmentForm.appointmentDate,
+				signal,
+			),
+		enabled:
+			patientForAppointment !== null &&
+			Boolean(appointmentForm.doctorId) &&
+			Boolean(appointmentForm.appointmentDate) &&
+			schedulesQuery.isSuccess &&
+			isDateScheduled(appointmentForm.appointmentDate),
+	});
+	const availableSlots = availabilityQuery.data?.slots ?? [];
+	const selectedSlot =
+		appointmentForm.startTime && appointmentForm.endTime
+			? `${appointmentForm.startTime}|${appointmentForm.endTime}`
+			: "";
 	useEffect(() => {
 		const url = new URL(window.location.href);
 		if (url.searchParams.get("action") !== "create") return;
@@ -169,11 +237,19 @@ export default function Patients() {
 	const closeAppointmentDialog = () => {
 		setPatientForAppointment(null);
 		setAppointmentForm(defaultAppointmentForm);
+		setAppointmentCalendarOpen(false);
 	};
 
 	const openAppointmentDialog = (patient: Patient) => {
 		setPatientForAppointment(patient);
 		setAppointmentForm(defaultAppointmentForm);
+		setAppointmentCalendarOpen(false);
+	};
+
+	const formatSlotTime = (value: string) => {
+		const [hourText, minute] = value.split(":");
+		const hour = Number(hourText);
+		return `${hour % 12 || 12}:${minute} ${hour < 12 ? "AM" : "PM"}`;
 	};
 
 	const handleAppointmentSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -192,16 +268,29 @@ export default function Patients() {
 			return;
 		}
 
-		const startDate = new Date(
-			`${appointmentForm.appointmentDate}T${appointmentForm.startTime}:00`,
-		);
-		const endDate = new Date(
-			`${appointmentForm.appointmentDate}T${appointmentForm.endTime}:00`,
-		);
 		if (
-			Number.isNaN(startDate.getTime()) ||
-			Number.isNaN(endDate.getTime()) ||
-			endDate <= startDate
+			!schedulesQuery.isSuccess ||
+			!isDateScheduled(appointmentForm.appointmentDate) ||
+			!availableSlots.some(
+				(slot) =>
+					slot.startTime === appointmentForm.startTime &&
+					slot.endTime === appointmentForm.endTime,
+			)
+		) {
+			toast.error("Select an available time slot.");
+			return;
+		}
+
+		const startTimeParts = appointmentForm.startTime
+			.split(":")
+			.map(Number);
+		const endTimeParts = appointmentForm.endTime.split(":").map(Number);
+		const startMinutes = startTimeParts[0] * 60 + startTimeParts[1];
+		const endMinutes = endTimeParts[0] * 60 + endTimeParts[1];
+		if (
+			!/^\d{2}:\d{2}$/.test(appointmentForm.startTime) ||
+			!/^\d{2}:\d{2}$/.test(appointmentForm.endTime) ||
+			endMinutes <= startMinutes
 		) {
 			toast.error("End time must be after start time.");
 			return;
@@ -211,11 +300,9 @@ export default function Patients() {
 			{
 				doctorId: appointmentForm.doctorId,
 				patientId: patientForAppointment.id,
-				appointmentDate: new Date(
-					`${appointmentForm.appointmentDate}T00:00:00`,
-				).toISOString(),
-				startTime: startDate.toISOString(),
-				endTime: endDate.toISOString(),
+				appointmentDate: appointmentForm.appointmentDate,
+				startTime: appointmentForm.startTime,
+				endTime: appointmentForm.endTime,
 				status: appointmentForm.status,
 				reason: appointmentForm.reason.trim(),
 				notes: appointmentForm.notes.trim(),
@@ -309,13 +396,13 @@ export default function Patients() {
 				activeItem="Patients"
 			/>
 			<div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto px-4 sm:px-6">
-				<Topbar onMenuClick={() => setSidebarOpen(true)} />
+				<Topbar
+					onMenuClick={() => setSidebarOpen(true)}
+					title="Patients"
+				/>
 				<main className="mx-auto w-full pb-10">
-					<header className="flex flex-col gap-4 border-b border-line pb-4 pt-3 sm:flex-row sm:items-end sm:justify-between">
+					<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
 						<div>
-							<h1 className="mt-1 font-serif text-4xl font-normal text-ink">
-								Patients
-							</h1>
 							<p className="mt-2 text-sm text-ink-muted">
 								{pagination.total} registered{" "}
 								{pagination.total === 1
@@ -323,7 +410,7 @@ export default function Patients() {
 									: "patients"}
 							</p>
 						</div>
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+						<div className="flex flex-col gap-2 sm:flex-row sm:items-center ml-auto">
 							<div className="relative w-full sm:w-72">
 								<Search
 									className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
@@ -882,16 +969,24 @@ export default function Patients() {
 										}
 										onValueChange={(
 											doctorId,
-										) =>
+										) => {
 											setAppointmentForm(
 												(
 													current,
 												) => ({
 													...current,
 													doctorId,
+													appointmentDate:
+														"",
+													startTime:
+														"",
+													endTime: "",
 												}),
-											)
-										}
+											);
+											setAppointmentCalendarOpen(
+												false,
+											);
+										}}
 									>
 										<SelectTrigger
 											id="appointment-doctor"
@@ -965,84 +1060,206 @@ export default function Patients() {
 											*
 										</span>
 									</Label>
-									<Input
-										id="appointment-date"
-										type="date"
-										required
-										value={
-											appointmentForm.appointmentDate
+									<Popover
+										open={
+											appointmentCalendarOpen
 										}
-										onChange={(event) =>
-											setAppointmentForm(
-												(
-													current,
-												) => ({
-													...current,
-													appointmentDate:
-														event
-															.target
-															.value,
-												}),
-											)
+										onOpenChange={
+											setAppointmentCalendarOpen
 										}
-									/>
+									>
+										<PopoverTrigger
+											asChild
+										>
+											<Button
+												id="appointment-date"
+												type="button"
+												variant="outline"
+												className="w-full justify-start gap-2 border-line bg-surface text-left font-normal hover:bg-muted"
+												disabled={
+													!appointmentForm.doctorId ||
+													schedulesQuery.isPending
+												}
+											>
+												<CalendarDays
+													className="size-4 text-ink-muted"
+													aria-hidden="true"
+												/>
+												{appointmentForm.appointmentDate
+													? format(
+															parseISO(
+																appointmentForm.appointmentDate,
+															),
+															"EEE, MMM d, yyyy",
+														)
+													: schedulesQuery.isPending
+														? "Loading schedule dates..."
+														: "Choose a date"}
+											</Button>
+										</PopoverTrigger>
+										<PopoverContent
+											align="start"
+											className="w-auto p-1"
+										>
+											<Calendar
+												mode="single"
+												selected={
+													appointmentForm.appointmentDate
+														? parseISO(
+																appointmentForm.appointmentDate,
+															)
+														: undefined
+												}
+												defaultMonth={
+													appointmentForm.appointmentDate
+														? parseISO(
+																appointmentForm.appointmentDate,
+															)
+														: new Date()
+												}
+												disabled={(
+													day,
+												) =>
+													!isDateScheduled(
+														format(
+															day,
+															"yyyy-MM-dd",
+														),
+													)
+												}
+												onSelect={(
+													day,
+												) => {
+													if (
+														!day
+													)
+														return;
+													const appointmentDate =
+														format(
+															day,
+															"yyyy-MM-dd",
+														);
+													setAppointmentForm(
+														(
+															current,
+														) => ({
+															...current,
+															appointmentDate,
+															startTime:
+																"",
+															endTime: "",
+														}),
+													);
+													setAppointmentCalendarOpen(
+														false,
+													);
+												}}
+											/>
+										</PopoverContent>
+									</Popover>
+									{schedulesQuery.isError && (
+										<p
+											role="alert"
+											className="text-xs text-accent-strong"
+										>
+											{getApiErrorMessage(
+												schedulesQuery.error,
+											)}
+										</p>
+									)}
 								</div>
-								<div className="space-y-1.5">
-									<Label htmlFor="appointment-start">
-										Start time{" "}
+								<div className="space-y-1.5 sm:col-span-2">
+									<Label htmlFor="appointment-slot">
+										Available time slot{" "}
 										<span className="text-accent-strong">
 											*
 										</span>
 									</Label>
-									<Input
-										id="appointment-start"
-										type="time"
-										required
-										value={
-											appointmentForm.startTime
-										}
-										onChange={(event) =>
+									<Select
+										value={selectedSlot}
+										onValueChange={(
+											value,
+										) => {
+											const [
+												startTime,
+												endTime,
+											] =
+												value.split(
+													"|",
+												);
 											setAppointmentForm(
 												(
 													current,
 												) => ({
 													...current,
-													startTime:
-														event
-															.target
-															.value,
+													startTime,
+													endTime,
 												}),
-											)
+											);
+										}}
+										disabled={
+											!appointmentForm.appointmentDate ||
+											availabilityQuery.isPending ||
+											availableSlots.length ===
+												0
 										}
-									/>
-								</div>
-								<div className="space-y-1.5">
-									<Label htmlFor="appointment-end">
-										End time{" "}
-										<span className="text-accent-strong">
-											*
-										</span>
-									</Label>
-									<Input
-										id="appointment-end"
-										type="time"
-										required
-										value={
-											appointmentForm.endTime
-										}
-										onChange={(event) =>
-											setAppointmentForm(
+									>
+										<SelectTrigger
+											id="appointment-slot"
+											className="w-full"
+										>
+											<SelectValue
+												placeholder={
+													!appointmentForm.appointmentDate
+														? "Choose a date first"
+														: availabilityQuery.isPending
+															? "Loading available slots..."
+															: "Select a time slot"
+												}
+											/>
+										</SelectTrigger>
+										<SelectContent>
+											{availableSlots.map(
 												(
-													current,
-												) => ({
-													...current,
-													endTime: event
-														.target
-														.value,
-												}),
-											)
-										}
-									/>
+													slot,
+												) => (
+													<SelectItem
+														key={`${slot.startTime}-${slot.endTime}`}
+														value={`${slot.startTime}|${slot.endTime}`}
+													>
+														{formatSlotTime(
+															slot.startTime,
+														)}{" "}
+														-{" "}
+														{formatSlotTime(
+															slot.endTime,
+														)}
+													</SelectItem>
+												),
+											)}
+										</SelectContent>
+									</Select>
+									{availabilityQuery.isError && (
+										<p
+											role="alert"
+											className="text-xs text-accent-strong"
+										>
+											{getApiErrorMessage(
+												availabilityQuery.error,
+											)}
+										</p>
+									)}
+									{availabilityQuery.isSuccess &&
+										availableSlots.length ===
+											0 && (
+											<p className="text-xs text-ink-muted">
+												No
+												available
+												slots
+												for this
+												date.
+											</p>
+										)}
 								</div>
 								<div className="space-y-1.5">
 									<Label htmlFor="appointment-status">
@@ -1081,6 +1298,24 @@ export default function Patients() {
 											</SelectItem>
 											<SelectItem value="confirmed">
 												Confirmed
+											</SelectItem>
+											<SelectItem value="checkedIn">
+												CheckedIn
+											</SelectItem>
+											<SelectItem value="inProgress">
+												InProgress
+											</SelectItem>
+											<SelectItem value="completed">
+												Completed
+											</SelectItem>
+											<SelectItem value="cancelled">
+												Cancelled
+											</SelectItem>
+											<SelectItem value="noShow">
+												NoShow
+											</SelectItem>
+											<SelectItem value="rescheduled">
+												Rescheduled
 											</SelectItem>
 										</SelectContent>
 									</Select>

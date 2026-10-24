@@ -457,11 +457,23 @@ export function AppointmentDialogs({
 											<SelectItem value="confirmed">
 												Confirmed
 											</SelectItem>
+											<SelectItem value="checkedIn">
+												CheckedIn
+											</SelectItem>
+											<SelectItem value="inProgress">
+												InProgress
+											</SelectItem>
 											<SelectItem value="completed">
 												Completed
 											</SelectItem>
 											<SelectItem value="cancelled">
 												Cancelled
+											</SelectItem>
+											<SelectItem value="noShow">
+												NoShow
+											</SelectItem>
+											<SelectItem value="rescheduled">
+												Rescheduled
 											</SelectItem>
 										</SelectContent>
 									</Select>

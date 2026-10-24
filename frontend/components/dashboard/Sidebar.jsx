@@ -12,9 +12,11 @@ import { useClinicStore } from "@/stores/clinicStore";
 import { NAV_ITEMS } from "./data";
 
 function NavList({ onNavigate, activeItem }) {
-	const activeReport = ["Doctors report", "Patients report"].includes(
-		activeItem,
-	);
+	const activeReport = [
+		"Doctors report",
+		"Patients report",
+		"Appointments report",
+	].includes(activeItem);
 	const [reportsOpen, setReportsOpen] = useState(activeReport);
 
 	return (

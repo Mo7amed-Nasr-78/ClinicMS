@@ -70,7 +70,12 @@ export async function findClinicIdForUser(userId: string) {
 	const doctor = await db.orm.public.Doctor.select("clinicId").first({
 		userId: userId as UserId,
 	});
-	return doctor ? { id: doctor.clinicId } : null;
+	if (doctor) return { id: doctor.clinicId };
+
+	const receptionist = await db.orm.public.Receptionist.select(
+		"clinicId",
+	).first({ userId: userId as UserId });
+	return receptionist ? { id: receptionist.clinicId } : null;
 }
 
 function normalizePagination(page: number, limit: number) {

@@ -249,13 +249,10 @@ export default function DoctorSchedulesPage() {
 				activeItem="Schedule"
 			/>
 			<div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto px-4 sm:px-6">
-				<Topbar onMenuClick={() => setSidebarOpen(true)} />
+				<Topbar onMenuClick={() => setSidebarOpen(true)} title={"Doctor schedules"} />
 				<main className="mx-auto w-full pb-10">
 					<header className="flex flex-col gap-4 border-b border-line pb-4 pt-3 sm:flex-row sm:items-end sm:justify-between">
 						<div>
-							<h1 className="mt-1 font-serif text-4xl font-normal text-ink">
-								Doctor schedules
-							</h1>
 							<p className="mt-2 text-sm text-ink-muted">
 								{visibleSchedules.length} weekly
 								availability{" "}

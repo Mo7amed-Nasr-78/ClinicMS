@@ -8,7 +8,10 @@ import { ClinicsModule } from "./modules/clinics/clinics.module";
 import { DoctorSchedulesModule } from "./modules/doctor-schedules/doctor-schedules.module";
 import { PatientsModule } from "./modules/patients/patients.module";
 import { AppointmentsModule } from "./modules/appointments/appointments.module";
+import { MedicalRecordsModule } from "./modules/medical-records/medical-records.module";
+import { PrescriptionsModule } from "./modules/prescriptions/prescriptions.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { ReceptionistsModule } from "./modules/receptionists/receptionists.module";
 
 @Module({
 	imports: [
@@ -19,7 +22,10 @@ import { ReportsModule } from "./modules/reports/reports.module";
 		DoctorSchedulesModule,
 		PatientsModule,
 		AppointmentsModule,
+		MedicalRecordsModule,
+		PrescriptionsModule,
 		ReportsModule,
+		ReceptionistsModule,
 	],
 	controllers: [AppController],
 })

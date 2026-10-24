@@ -2,7 +2,10 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 import type { Doctor } from "@/api/services/doctorsService";
+import { PermissionGate } from "@/components/auth/PermissionGate";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -27,6 +30,10 @@ export function DoctorTable({
 	onDeactivate,
 	emptyState,
 }: DoctorTableProps) {
+	const { data: session } = useSession();
+	const permissions = session?.user?.permissions;
+	const canUpdate = hasPermission(permissions, "update:doctors");
+	const canDelete = hasPermission(permissions, "delete:doctors");
 	const columns: ColumnDef<Doctor>[] = [
 		{
 			id: "doctor",
@@ -80,36 +87,43 @@ export function DoctorTable({
 			header: "Created",
 			cell: ({ row }) => formatDoctorDate(row.original.createdAt),
 		},
-		{
+	];
+
+	if (canUpdate || canDelete) {
+		columns.push({
 			id: "actions",
 			header: "Actions",
 			cell: ({ row }) => (
 				<div className="flex items-center gap-1">
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={`Edit ${doctorDisplayName(row.original)}`}
-						title="Edit doctor"
-						onClick={() => onEdit(row.original)}
-					>
-						<Pencil aria-hidden="true" />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={`Deactivate ${doctorDisplayName(row.original)}`}
-						title="Deactivate doctor"
-						disabled={isDoctorInactive(row.original)}
-						onClick={() => onDeactivate(row.original)}
-					>
-						<Trash2 aria-hidden="true" />
-					</Button>
+					<PermissionGate permissions={["update:doctors"]}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={`Edit ${doctorDisplayName(row.original)}`}
+							title="Edit doctor"
+							onClick={() => onEdit(row.original)}
+						>
+							<Pencil aria-hidden="true" />
+						</Button>
+					</PermissionGate>
+					<PermissionGate permissions={["delete:doctors"]}>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={`Deactivate ${doctorDisplayName(row.original)}`}
+							title="Deactivate doctor"
+							disabled={isDoctorInactive(row.original)}
+							onClick={() => onDeactivate(row.original)}
+						>
+							<Trash2 aria-hidden="true" />
+						</Button>
+					</PermissionGate>
 				</div>
 			),
-		},
-	];
+		});
+	}
 
 	return (
 		<DataTable

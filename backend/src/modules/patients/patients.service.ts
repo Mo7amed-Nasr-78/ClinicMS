@@ -11,9 +11,11 @@ import {
 	createPatient,
 	deletePatientById,
 	findDoctorIdByUserId,
+	findMedicalRecordsForPatient,
 	findPatientByEmail,
 	findPatientById,
 	findPatientsByClinicId,
+	findPrescriptionsForPatient,
 	updatePatientById,
 } from "./patients.actions";
 import type { CreatePatientDto } from "./DTOs/createPatient.dto";
@@ -21,7 +23,13 @@ import type { UpdatePatientDto } from "./DTOs/updatePatient.dto";
 
 @Injectable()
 export class PatientsService {
-	async findAll(userId: string, role: string, page = 1, limit = 20) {
+	async findAll(
+		userId: string,
+		role: string,
+		page = 1,
+		limit = 20,
+		status?: string,
+	) {
 		const clinicId = await this.getClinicId(userId);
 		if (role === Role.DOCTOR) {
 			const doctorId = await findDoctorIdByUserId(userId, clinicId);
@@ -33,10 +41,11 @@ export class PatientsService {
 				page,
 				limit,
 				doctorId,
+				status,
 			);
 		}
 
-		return findPatientsByClinicId(clinicId, page, limit);
+		return findPatientsByClinicId(clinicId, page, limit, undefined, status);
 	}
 
 	async findOne(ownerId: string, patientId: string) {
@@ -47,6 +56,18 @@ export class PatientsService {
 		}
 
 		return patient;
+	}
+
+	async findMedicalRecords(ownerId: string, patientId: string) {
+		const clinicId = await this.getClinicId(ownerId);
+		await this.ensurePatientExists(clinicId, patientId);
+		return findMedicalRecordsForPatient(clinicId, patientId);
+	}
+
+	async findPrescriptions(ownerId: string, patientId: string) {
+		const clinicId = await this.getClinicId(ownerId);
+		await this.ensurePatientExists(clinicId, patientId);
+		return findPrescriptionsForPatient(patientId);
 	}
 
 	async create(ownerId: string, input: CreatePatientDto) {

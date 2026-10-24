@@ -27,6 +27,7 @@ import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PermissionGate } from "../auth/PermissionGate";
 
 export default function DoctorsPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -64,14 +65,14 @@ export default function DoctorsPage() {
 		);
 	}, [doctors, search]);
 
-	const handleFormChange =
-		(field: keyof DoctorForm) =>
-		(event: React.ChangeEvent<HTMLInputElement>) => {
-			setForm((current) => ({
-				...current,
-				[field]: event.target.value,
-			}));
-		};
+	// const handleFormChange =
+	// 	(field: keyof DoctorForm) =>
+	// 	(event: React.ChangeEvent<HTMLInputElement>) => {
+	// 		setForm((current) => ({
+	// 			...current,
+	// 			[field]: event.target.value,
+	// 		}));
+	// 	};
 
 	const openEditModal = (doctor: Doctor) => {
 		setSelectedDoctor(doctor);
@@ -166,13 +167,10 @@ export default function DoctorsPage() {
 				activeItem="Doctors"
 			/>
 			<div className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto px-4 sm:px-6">
-				<Topbar onMenuClick={() => setSidebarOpen(true)} />
+				<Topbar onMenuClick={() => setSidebarOpen(true)} title="Doctors" />
 				<main className="mx-auto w-full pb-10">
-					<header className="flex flex-col gap-4 border-b border-line pb-4 pt-3 sm:flex-row sm:items-end sm:justify-between">
+					<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
 						<div>
-							<h1 className="font-serif text-4xl font-normal text-ink">
-								Doctors
-							</h1>
 							<p className="mt-2 text-sm text-ink-muted">
 								{pagination.total} doctor record
 								{pagination.total === 1
@@ -180,19 +178,21 @@ export default function DoctorsPage() {
 									: "s"}
 							</p>
 						</div>
-						<Button
-							type="button"
-							onClick={() => {
-								setSelectedDoctor(null);
-								setForm(defaultDoctorForm);
-								setIsModalOpen(true);
-							}}
-						>
-							Add doctor
-						</Button>
+						<PermissionGate permissions={["create:doctors"]}>
+							<Button
+								type="button"
+								onClick={() => {
+									setSelectedDoctor(null);
+									setForm(defaultDoctorForm);
+									setIsModalOpen(true);
+								}}
+							>
+								Add doctor
+							</Button>
+						</PermissionGate>
 					</header>
 
-					<section className="mt-6 rounded-xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+					<section className="mt-4 rounded-xl border border-line bg-surface p-4 shadow-sm sm:p-5">
 						<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 							<div className="relative w-full sm:max-w-md">
 								<Search

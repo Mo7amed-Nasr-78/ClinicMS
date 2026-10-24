@@ -18,6 +18,16 @@ export type Patient = {
 	updatedAt: string;
 };
 
+export type TodayPatient = Patient & {
+	appointments: {
+		id: string;
+		appointmentDate: string;
+		startTime: string;
+		endTime: string;
+		status: string;
+	}[];
+};
+
 export type CreatePatientPayload = Pick<
 	Patient,
 	| "firstName"
@@ -32,7 +42,9 @@ export type CreatePatientPayload = Pick<
 	| "allergies"
 >;
 
-export type UpdatePatientPayload = Partial<CreatePatientPayload>;
+export type UpdatePatientPayload = Partial<CreatePatientPayload> & {
+	status?: Patient["status"];
+};
 
 export type PatientsResponse = {
 	patients: Patient[];
@@ -44,13 +56,90 @@ export type PatientsResponse = {
 	};
 };
 
+export type PatientMedicalRecord = {
+	id: string;
+	diagnosis: string;
+	symptoms: string;
+	examination: string;
+	treatment: string;
+	notes: string;
+	createdAt: string;
+	doctor: {
+		id: string;
+		specialty: string;
+		user: {
+			firstName: string | null;
+			lastName: string | null;
+		};
+	};
+};
+
+export type PatientPrescription = {
+	id: string;
+	medications: string;
+	notes: string;
+	createdAt: string;
+	doctor: {
+		id: string;
+		specialty: string;
+		user: {
+			firstName: string | null;
+			lastName: string | null;
+		};
+	};
+};
+
+export async function getPatientById(
+	patientId: string,
+	signal?: AbortSignal,
+): Promise<Patient> {
+	const { data } = await httpClient.get<Patient>(`/patients/${patientId}`, {
+		signal,
+	});
+	return data;
+}
+
+export async function getPatientMedicalRecords(
+	patientId: string,
+	signal?: AbortSignal,
+): Promise<PatientMedicalRecord[]> {
+	const { data } = await httpClient.get<PatientMedicalRecord[]>(
+		`/patients/${patientId}/medical-records`,
+		{ signal },
+	);
+	return data;
+}
+
+export async function getPatientPrescriptions(
+	patientId: string,
+	signal?: AbortSignal,
+): Promise<PatientPrescription[]> {
+	const { data } = await httpClient.get<PatientPrescription[]>(
+		`/patients/${patientId}/prescriptions`,
+		{ signal },
+	);
+	return data;
+}
+
 export async function getPatients(
 	page = 1,
 	limit = 20,
 	signal?: AbortSignal,
+	status?: string,
 ): Promise<PatientsResponse> {
 	const { data } = await httpClient.get<PatientsResponse>("/patients", {
-		params: { page, limit },
+		params: { page, limit, ...(status ? { status } : {}) },
+		signal,
+	});
+	return data;
+}
+
+export async function getPatientsToday(
+	date: string,
+	signal?: AbortSignal,
+): Promise<TodayPatient[]> {
+	const { data } = await httpClient.get<TodayPatient[]>("/patients/today", {
+		params: { date },
 		signal,
 	});
 	return data;

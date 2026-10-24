@@ -62,6 +62,7 @@ export function useUpdateAppointment() {
 		}) => updateAppointment(appointmentId, payload),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			queryClient.invalidateQueries({ queryKey: ["patients", "today"] });
 		},
 	});
 }

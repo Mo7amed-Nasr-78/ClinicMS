@@ -19,17 +19,21 @@ export const Gender = {
 } as const;
 
 export const Patient_Status = {
-	UPCOMING: "upcoming",
-	WAITING: "waiting",
-	IN_ROOM: "in_room",
-	COMPLETE: "complete",
+	NEW: "new",
+	ACTIVE: "active",
+	IN_ACTIVE: "inActive",
+	ARCHIVED: "archived",
 } as const;
 
 export const appointment_Status = {
-	INWALK: "inWalk",
 	SCHEDULED: "scheduled",
-	TELMEDICINE:"Telemedicine",
-	FOLLOWUP: "followUp",
+	CONFIRMED: "confirmed",
+	CHECKED_IN: "checkedIn",
+	IN_PROGRESS: "inProgress",
+	COMPLETED: "completed",
+	CANCELLED: "cancelled",
+	NO_SHOW: "noShow",
+	RESCHEDULED: "rescheduled",
 } as const;
 
 const pgText = {
@@ -64,17 +68,21 @@ export const PatientGender = enumType(
 export const PatientStatus = enumType(
 	"patient_status",
 	pgText,
-	member("upcoming", Patient_Status.UPCOMING),
-	member("waiting", Patient_Status.WAITING),
-	member("in_room", Patient_Status.IN_ROOM),
-	member("complete", Patient_Status.COMPLETE),
+	member("new", Patient_Status.NEW),
+	member("active", Patient_Status.ACTIVE),
+	member("inActive", Patient_Status.IN_ACTIVE),
+	member("archived", Patient_Status.ARCHIVED),
 );
 
 export const AppointmentStatus = enumType(
 	"appointment_status",
 	pgText,
-	member("inWalk", appointment_Status.INWALK),
 	member("scheduled", appointment_Status.SCHEDULED),
-	member("telemedicine", appointment_Status.TELMEDICINE),
-	member("followUp", appointment_Status.FOLLOWUP),
+	member("confirmed", appointment_Status.CONFIRMED),
+	member("checkedIn", appointment_Status.CHECKED_IN),
+	member("inProgress", appointment_Status.IN_PROGRESS),
+	member("completed", appointment_Status.COMPLETED),
+	member("cancelled", appointment_Status.CANCELLED),
+	member("noShow", appointment_Status.NO_SHOW),
+	member("rescheduled", appointment_Status.RESCHEDULED),
 );

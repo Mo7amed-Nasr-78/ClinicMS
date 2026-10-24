@@ -44,4 +44,13 @@ export class ReportsController {
 			query,
 		});
 	}
+
+	@Get("appointments/today")
+	@RequirePermissions(Permission.VIEW_APPOINTMENTS)
+	findTodaysAppointments(@Req() request: AuthenticatedRequest) {
+		return this.reportsService.findTodaysAppointments(
+			request.user.sub,
+			request.user.role,
+		);
+	}
 }

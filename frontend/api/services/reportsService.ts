@@ -44,6 +44,38 @@ export type PatientReportFilters = {
 	q?: string;
 };
 
+export type TodayAppointmentReportItem = {
+	id: string;
+	clinicId: string;
+	doctorId: string;
+	patientId: string;
+	appointmentDate: string;
+	startTime: string;
+	endTime: string;
+	status: string;
+	reason: string;
+	notes: string;
+	createdBy: string;
+	createdAt: string;
+	updatedAt: string;
+	patient: {
+		id: string;
+		firstName: string;
+		lastName: string;
+		email: string | null;
+		status: string;
+	};
+	doctor: {
+		id: string;
+		specialty: string;
+		user: {
+			firstName: string | null;
+			lastName: string | null;
+			email: string;
+		};
+	};
+};
+
 export async function getDoctorsReport(
 	filters: DoctorReportFilters,
 	signal?: AbortSignal,
@@ -62,6 +94,16 @@ export async function getPatientsReport(
 	const { data } = await httpClient.get<PatientReportPatient[]>(
 		"/reports/patients",
 		{ params: filters, signal },
+	);
+	return data;
+}
+
+export async function getTodaysAppointmentsReport(
+	signal?: AbortSignal,
+): Promise<TodayAppointmentReportItem[]> {
+	const { data } = await httpClient.get<TodayAppointmentReportItem[]>(
+		"/reports/appointments/today",
+		{ signal },
 	);
 	return data;
 }

@@ -2,6 +2,8 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Clock3, Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -29,6 +31,15 @@ export function DoctorScheduleTable({
 	onEdit,
 	onDelete,
 }: DoctorScheduleTableProps) {
+	const { data: session } = useSession();
+	const canUpdate = hasPermission(
+		session?.user?.permissions,
+		"update:doctor-schedules",
+	);
+	const canDelete = hasPermission(
+		session?.user?.permissions,
+		"delete:doctor-schedules",
+	);
 	const columns: ColumnDef<ScheduleRow>[] = [
 		{
 			id: "doctor",
@@ -90,37 +101,43 @@ export function DoctorScheduleTable({
 				</Badge>
 			),
 		},
-		{
+	];
+	if (canUpdate || canDelete) {
+		columns.push({
 			id: "actions",
 			header: "Actions",
 			cell: ({ row }) => (
 				<div className="flex items-center justify-end gap-1">
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Edit schedule"
-						title="Edit schedule"
-						disabled={isUpdating || isDeleting}
-						onClick={() => onEdit(row.original)}
-					>
-						<Pencil aria-hidden="true" />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Delete schedule"
-						title="Delete schedule"
-						disabled={isUpdating || isDeleting}
-						onClick={() => onDelete(row.original)}
-					>
-						<Trash2 aria-hidden="true" />
-					</Button>
+					{canUpdate && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Edit schedule"
+							title="Edit schedule"
+							disabled={isUpdating || isDeleting}
+							onClick={() => onEdit(row.original)}
+						>
+							<Pencil aria-hidden="true" />
+						</Button>
+					)}
+					{canDelete && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Delete schedule"
+							title="Delete schedule"
+							disabled={isUpdating || isDeleting}
+							onClick={() => onDelete(row.original)}
+						>
+							<Trash2 aria-hidden="true" />
+						</Button>
+					)}
 				</div>
 			),
-		},
-	];
+		});
+	}
 
 	return (
 		<DataTable

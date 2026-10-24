@@ -31,7 +31,7 @@ import {
 	findPatientInClinic,
 	updateAppointmentById,
 } from "./appointments.actions";
-import type { AppointmentStatus } from "./appointments.actions";
+import type { AppointmentStatus, PatientId } from "./appointments.actions";
 import type { CreateAppointmentDto } from "./DTOs/createAppointment.dto";
 import type { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto";
 
@@ -44,8 +44,15 @@ export class AppointmentsService {
 		limit = 20,
 		appointmentDate?: string,
 		status?: string,
+		patientId?: string,
 	) {
 		const clinicId = await this.getClinicId(userId);
+		if (
+			patientId &&
+			!(await findPatientInClinic(clinicId, patientId))
+		) {
+			throw new NotFoundException("Patient not found");
+		}
 		const dayBounds = appointmentDate
 			? getUtcDayBounds(appointmentDate)
 			: undefined;
@@ -77,6 +84,7 @@ export class AppointmentsService {
 				doctorId,
 				dayBounds?.start,
 				appointmentStatus,
+				patientId as PatientId | undefined,
 			);
 		}
 
@@ -87,6 +95,7 @@ export class AppointmentsService {
 			undefined,
 			dayBounds?.start,
 			appointmentStatus,
+			patientId as PatientId | undefined,
 		);
 	}
 

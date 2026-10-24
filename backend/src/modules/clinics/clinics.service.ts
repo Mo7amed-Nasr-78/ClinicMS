@@ -1,12 +1,10 @@
 import {
 	ConflictException,
+	ForbiddenException,
 	Inject,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import { AuthorizationService } from "../../authorization/authorization.service.ts";
-import { findUserById } from "../users/users.actions";
-
 import {
 	createClinic,
 	deleteClinic,
@@ -20,6 +18,14 @@ import {
 import type { ClinicId } from "./clinics.actions";
 import type { CreateClinicDto } from "./DTOs/createClinic.dto";
 import type { UpdateClinicDto } from "./DTOs/updateClinic.dto";
+import { Role } from "../../authorization/enums/role.enum.ts";
+import { AuthorizationService } from "../../authorization/authorization.service.ts";
+import {
+	findDoctorDashboardStats,
+	findDoctorIdByUserId,
+} from "../appointments/appointments.actions";
+import { getUtcDayBounds } from "../doctors/availability.ts";
+import { findUserById } from "../users/users.actions";
 
 @Injectable()
 export class ClinicsService {
@@ -67,6 +73,52 @@ export class ClinicsService {
 					),
 			},
 		};
+	}
+
+	async findStats(userId: string, role: string) {
+		if (role !== Role.DOCTOR) {
+			throw new ForbiddenException(
+				"Stats are not available for this role yet",
+			);
+		}
+
+		const clinic = await findClinicIdForUser(userId);
+		if (!clinic) {
+			throw new NotFoundException("Clinic not found");
+		}
+		const doctorId = await findDoctorIdByUserId(userId, clinic.id);
+		if (!doctorId) {
+			throw new NotFoundException("Doctor not found");
+		}
+
+		const now = new Date();
+		const today = getUtcDayBounds(now.toISOString().slice(0, 10));
+		const monthStart = getUtcDayBounds(
+			new Date(
+				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+			)
+				.toISOString()
+				.slice(0, 10),
+		);
+		const nextMonthStart = getUtcDayBounds(
+			new Date(
+				Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+			)
+				.toISOString()
+				.slice(0, 10),
+		);
+		if (!today || !monthStart || !nextMonthStart) {
+			throw new NotFoundException("Current date is unavailable");
+		}
+
+		return findDoctorDashboardStats(
+			clinic.id as ClinicId,
+			doctorId,
+			today.start,
+			today.end,
+			monthStart.start,
+			nextMonthStart.start,
+		);
 	}
 
 	async findDoctors(

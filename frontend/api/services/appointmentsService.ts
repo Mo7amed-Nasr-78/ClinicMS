@@ -53,6 +53,7 @@ export type AppointmentsResponse = {
 export type AppointmentFilters = {
 	appointmentDate?: string;
 	status?: string;
+	patientId?: string;
 };
 
 export async function getAppointments(

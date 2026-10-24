@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 
 type ReportPageLayoutProps = {
 	title: string;
-	activeItem: "Doctors report" | "Patients report";
+	activeItem: "Doctors report" | "Patients report" | "Appointments report";
 	children: ReactNode;
 };
 
@@ -38,18 +38,11 @@ export function ReportPageLayout({
 				<div className="print:hidden">
 					<Topbar
 						onMenuClick={() => setSidebarOpen(true)}
+						title={title}
 					/>
 				</div>
 				<main className="mx-auto w-full pb-10">
-					<header className="flex flex-col gap-4 border-b border-line pb-4 pt-3 sm:flex-row sm:items-end sm:justify-between print:hidden">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-								Clinic reports
-							</p>
-							<h1 className="mt-1 font-serif text-4xl font-normal text-ink">
-								{title}
-							</h1>
-						</div>
+					<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-end print:hidden">
 						<Button
 							type="button"
 							className="gap-2"
@@ -62,7 +55,7 @@ export function ReportPageLayout({
 
 					<div
 						data-print-report
-						className="mt-5 rounded-lg border border-line bg-surface p-4 sm:p-6"
+						className="mt-4 rounded-lg border border-line bg-surface p-4 sm:p-6"
 					>
 						<header className="mb-5 border-b border-line pb-4">
 							<p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
@@ -72,10 +65,10 @@ export function ReportPageLayout({
 								{clinicQuery.data?.name ??
 									"Clinic"}
 							</h2>
-							<p className="mt-1 text-sm text-ink-muted">
+							{/* <p className="mt-1 text-sm text-ink-muted">
 								{clinicQuery.data?.address ??
 									"Clinic address unavailable"}
-							</p>
+							</p> */}
 						</header>
 						{children}
 					</div>

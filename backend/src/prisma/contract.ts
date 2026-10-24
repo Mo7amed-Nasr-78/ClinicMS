@@ -50,6 +50,17 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 		},
 	});
 
+	const Receptionist = model("Receptionist", {
+		fields: {
+			id: field.id.uuidv7String(),
+			status: field.namedType(UserStatus),
+			userId: field.uuidString().unique(),
+			clinicId: field.uuidString(),
+			createdAt: field.temporal.createdAtString(),
+			updatedAt: field.temporal.updatedAtString(),
+		},
+	});
+
 	const Patient = model("Patient", {
 		fields: {
 			id: field.id.uuidv7String(),
@@ -62,9 +73,16 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 			email: field.text().optional().unique(),
 			address: field.text(),
 			emergencyContact: field.text(),
-			status: field.namedType(PatientStatus),
+			status: field.namedType(PatientStatus).default("new"),
 			allergies: field.text(),
 			clinicId: field.uuidString(),
+
+			archivedAt: field.temporal.timestamp().optional(),
+			archivedBy: field.text().optional(),
+			archivedReason: field.text().optional(),
+
+			last_visit_at: field.temporal.timestamp().optional(),
+
 			createdAt: field.temporal.createdAtString(),
 			updatedAt: field.temporal.updatedAtString(),
 		},
@@ -171,6 +189,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 		models: {
 			User: User.relations({
 				clinic: rel.hasOne(Clinic, { by: "ownerId" }),
+				receptionist: rel.hasOne(Receptionist, { by: "userId" }),
 			}),
 			Clinic: Clinic.relations({
 				user: rel.belongsTo(User, {
@@ -181,6 +200,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 					by: "clinicId",
 				}),
 				doctors: rel.hasMany(Doctor, { by: "clinicId" }),
+				receptionists: rel.hasMany(Receptionist, { by: "clinicId" }),
 				patients: rel.hasMany(Patient, { by: "clinicId" }),
 				medicalRecords: rel.hasMany(MedicalRecord, {
 					by: "clinicId",
@@ -209,6 +229,13 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 				}),
 				medicalRecords: rel.hasMany(MedicalRecord, {
 					by: "doctorId",
+				}),
+			}),
+			Receptionist: Receptionist.relations({
+				user: rel.belongsTo(User, { from: "userId", to: "id" }),
+				clinic: rel.belongsTo(Clinic, {
+					from: "clinicId",
+					to: "id",
 				}),
 			}),
 			DoctorSchedule: DoctorSchedule.relations({

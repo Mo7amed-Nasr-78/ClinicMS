@@ -5,6 +5,7 @@ import type { CreateAppointmentDto } from "./DTOs/createAppointment.dto.ts";
 import type { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto.ts";
 import { Temporal } from "temporal-polyfill";
 import { and } from "@prisma/orm-postgres/orm-client";
+import { appointment_Status } from "../../prisma/enums.ts";
 
 const appointmentFields = [
 	"id",
@@ -52,11 +53,13 @@ export async function findAppointmentsByClinicId(
 	doctorId?: DoctorId,
 	appointmentDate?: Temporal.Instant,
 	status?: AppointmentStatus,
+	patientId?: PatientId,
 ) {
 	const pagination = normalizePagination(page, limit);
 	const filters = {
 		clinicId,
 		...(doctorId && { doctorId }),
+		...(patientId && { patientId }),
 		...(appointmentDate && { appointmentDate }),
 		...(status && { status }),
 	};
@@ -64,7 +67,13 @@ export async function findAppointmentsByClinicId(
 		db.orm.public.Appointment.select(...appointmentFields)
 			.where(filters)
 			.include("patient", (patient) =>
-				patient.select("id", "firstName", "lastName", "email", "status"),
+				patient.select(
+					"id",
+					"firstName",
+					"lastName",
+					"email",
+					"status",
+				),
 			)
 			.include("doctor", (doctor) =>
 				doctor
@@ -97,6 +106,43 @@ export async function findAppointmentsByClinicId(
 			),
 		},
 	};
+}
+
+export function findAppointmentsForDate(
+	clinicId: ClinicId,
+	startOfDate: Temporal.Instant,
+	startOfNextDate: Temporal.Instant,
+	doctorId?: DoctorId,
+) {
+	return db.orm.public.Appointment.select(...appointmentFields)
+		.where((appointment) => {
+			const dateRange = and(
+				appointment.clinicId.eq(clinicId),
+				appointment.appointmentDate.gte(startOfDate),
+				appointment.appointmentDate.lt(startOfNextDate),
+			);
+			return doctorId
+				? and(dateRange, appointment.doctorId.eq(doctorId))
+				: dateRange;
+		})
+		.include("patient", (patient) =>
+			patient.select(
+				"id",
+				"firstName",
+				"lastName",
+				"email",
+				"status",
+			),
+		)
+		.include("doctor", (doctor) =>
+			doctor
+				.select("id", "specialty")
+				.include("user", (user) =>
+					user.select("firstName", "lastName", "email"),
+				),
+		)
+		.orderBy((appointment) => appointment.startTime.asc())
+		.all();
 }
 
 export async function findDoctorIdByUserId(userId: string, clinicId: ClinicId) {
@@ -136,6 +182,86 @@ export function findDoctorAppointmentsForDate(
 			),
 		)
 		.all();
+}
+
+export async function findDoctorDashboardStats(
+	clinicId: ClinicId,
+	doctorId: DoctorId,
+	todayStart: Temporal.Instant,
+	tomorrowStart: Temporal.Instant,
+	monthStart: Temporal.Instant,
+	nextMonthStart: Temporal.Instant,
+) {
+	const [
+		todayAppointmentCount,
+		monthlyAppointmentCount,
+		monthlyNoShowCount,
+		todayWaitlist,
+	] = await Promise.all([
+			db.orm.public.Appointment.where((appointment) =>
+				and(
+					appointment.clinicId.eq(clinicId),
+					appointment.doctorId.eq(doctorId),
+					appointment.appointmentDate.gte(todayStart),
+					appointment.appointmentDate.lt(tomorrowStart),
+				),
+			).aggregate((aggregate) => ({ total: aggregate.count() })),
+			db.orm.public.Appointment.where((appointment) =>
+				and(
+					appointment.clinicId.eq(clinicId),
+					appointment.doctorId.eq(doctorId),
+					appointment.appointmentDate.gte(monthStart),
+					appointment.appointmentDate.lt(nextMonthStart),
+				),
+			).aggregate((aggregate) => ({ total: aggregate.count() })),
+			db.orm.public.Appointment.where((appointment) =>
+				and(
+					appointment.clinicId.eq(clinicId),
+					appointment.doctorId.eq(doctorId),
+					appointment.appointmentDate.gte(monthStart),
+					appointment.appointmentDate.lt(nextMonthStart),
+					appointment.status.eq(appointment_Status.NO_SHOW),
+				),
+			).aggregate((aggregate) => ({ total: aggregate.count() })),
+			db.orm.public.Appointment.select(
+				"id",
+				"startTime",
+				"endTime",
+				"status",
+			)
+				.where((appointment) =>
+					and(
+						appointment.clinicId.eq(clinicId),
+						appointment.doctorId.eq(doctorId),
+						appointment.appointmentDate.gte(todayStart),
+						appointment.appointmentDate.lt(tomorrowStart),
+						appointment.status.eq(
+							appointment_Status.CHECKED_IN,
+						),
+					),
+				)
+				.include("patient", (patient) =>
+					patient.select("id", "firstName", "lastName"),
+				)
+				.orderBy((appointment) => appointment.startTime.asc())
+				.all(),
+		]);
+
+	return {
+		todayAppointments: todayAppointmentCount.total,
+		monthlyNoShowRate:
+			monthlyAppointmentCount.total === 0
+				? 0
+				: Number(
+						(
+							(monthlyNoShowCount.total /
+								monthlyAppointmentCount.total) *
+							100
+						).toFixed(1),
+					),
+		revenue: 0,
+		todayWaitlist,
+	};
 }
 
 export function findDoctorInClinic(clinicId: ClinicId, doctorId: string) {

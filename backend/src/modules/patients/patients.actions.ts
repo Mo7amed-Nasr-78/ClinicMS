@@ -5,6 +5,7 @@ import type { CreatePatientDto } from "./DTOs/createPatient.dto.ts";
 import type { UpdatePatientDto } from "./DTOs/updatePatient.dto.ts";
 import { Patient_Status } from "../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
+import type { Temporal } from "temporal-polyfill";
 
 const patientFields = [
 	"id",
@@ -48,14 +49,14 @@ export async function findPatientsByClinicId(
 	page = 1,
 	limit = 20,
 	doctorId?: DoctorId,
+	status?: string,
 ) {
 	const pagination = normalizePagination(page, limit);
+	const filters = { clinicId, ...(status ? { status } : {}) };
 	const patientQuery = db.orm.public.Patient.select(...patientFields).where(
-		{
-			clinicId,
-		},
+		filters,
 	);
-	const patientCountQuery = db.orm.public.Patient.where({ clinicId });
+	const patientCountQuery = db.orm.public.Patient.where(filters);
 	const scopedPatientQuery = doctorId
 		? patientQuery.where((patient) =>
 				patient.appointments.some((appointment) =>
@@ -114,10 +115,75 @@ export function findAllPatientsByClinicId(clinicId: ClinicId) {
 }
 
 export function findPatientById(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.select(...patientFields).first({
-		id: patientId as PatientId,
-		clinicId,
-	});
+	return db.orm.public.Patient.select(...patientFields)
+		.include("appointments")
+		.include("medicalRecords", (record) =>
+			record.include("doctor", (doctor) =>
+				doctor
+					.select("id", "specialty")
+					.include("user", (user) =>
+						user.select("firstName", "lastName"),
+					),
+			),
+		)
+		.include("prescriptions", (record) =>
+			record.include("doctor", (doctor) =>
+				doctor
+					.select("id", "specialty")
+					.include("user", (user) =>
+						user.select("firstName", "lastName"),
+					),
+			),
+		)
+		.include("files")
+		.first({
+			id: patientId as PatientId,
+			clinicId,
+		});
+}
+
+export function findMedicalRecordsForPatient(
+	clinicId: ClinicId,
+	patientId: string,
+) {
+	return db.orm.public.MedicalRecord.select(
+		"id",
+		"diagnosis",
+		"symptoms",
+		"examination",
+		"treatment",
+		"notes",
+		"createdAt",
+	)
+		.where({ clinicId, patientId: patientId as PatientId })
+		.include("doctor", (doctor) =>
+			doctor
+				.select("id", "specialty")
+				.include("user", (user) =>
+					user.select("firstName", "lastName"),
+				),
+		)
+		.orderBy((record) => record.createdAt.desc())
+		.all();
+}
+
+export function findPrescriptionsForPatient(patientId: string) {
+	return db.orm.public.Prescription.select(
+		"id",
+		"medications",
+		"notes",
+		"createdAt",
+	)
+		.where({ patientId: patientId as PatientId })
+		.include("doctor", (doctor) =>
+			doctor
+				.select("id", "specialty")
+				.include("user", (user) =>
+					user.select("firstName", "lastName"),
+				),
+		)
+		.orderBy((prescription) => prescription.createdAt.desc())
+		.all();
 }
 
 export function findPatientByEmail(email: string) {

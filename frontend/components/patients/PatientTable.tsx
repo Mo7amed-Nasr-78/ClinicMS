@@ -1,7 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { CalendarPlus, Pencil, Trash2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { hasPermission } from "@/lib/permissions";
 import type { Patient } from "@/api/services/patientService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,25 +30,41 @@ export function PatientTable({
 	isCreatingAppointment,
 	emptyState,
 }: PatientTableProps) {
+	const { data: session } = useSession();
+	const canCreateAppointments = hasPermission(
+		session?.user?.permissions,
+		"create:appointments",
+	);
+	const canUpdatePatients = hasPermission(
+		session?.user?.permissions,
+		"update:patients",
+	);
+	const canDeletePatients = hasPermission(
+		session?.user?.permissions,
+		"delete:patients",
+	);
 	const columns: ColumnDef<Patient>[] = [
 		{
 			id: "patient",
 			header: "Patient",
 			cell: ({ row }) => (
 				<div className="flex min-w-48 flex-col font-medium">
-					<span>
+					<Link
+						href={`/dashboard/patients/${row.original.id}`}
+						className="text-ink hover:text-brand"
+					>
 						{displayName(
 							row.original.firstName,
 							row.original.lastName,
 						)}
-					</span>
-					<span className="text-xs text-ink-muted">
-						{row.original.email ||
-							row.original.phone ||
-							"No contact details"}
-					</span>
+					</Link>
 				</div>
 			),
+		},
+		{
+			id: "email",
+			header: "Email",
+			cell: ({ row }) => row.original.email,
 		},
 		{
 			accessorKey: "dateOfBirth",
@@ -76,47 +95,57 @@ export function PatientTable({
 				</Badge>
 			),
 		},
-		{
+	];
+	if (canCreateAppointments || canUpdatePatients || canDeletePatients) {
+		columns.push({
 			id: "actions",
 			header: () => <div className="text-right">Actions</div>,
 			cell: ({ row }) => (
 				<div className="flex justify-end gap-1">
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={`Add appointment for ${displayName(row.original.firstName, row.original.lastName)}`}
-						title="Add appointment"
-						disabled={isCreatingAppointment}
-						onClick={() => onSchedule(row.original)}
-					>
-						<CalendarPlus aria-hidden="true" />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={`Edit ${displayName(row.original.firstName, row.original.lastName)}`}
-						title="Edit patient"
-						onClick={() => onEdit(row.original)}
-					>
-						<Pencil aria-hidden="true" />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						aria-label={`Delete ${displayName(row.original.firstName, row.original.lastName)}`}
-						title="Delete patient"
-						disabled={isDeleting}
-						onClick={() => onDelete(row.original)}
-					>
-						<Trash2 aria-hidden="true" />
-					</Button>
+					{canCreateAppointments && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={`Add appointment for ${displayName(row.original.firstName, row.original.lastName)}`}
+							title="Add appointment"
+							disabled={isCreatingAppointment}
+							onClick={() =>
+								onSchedule(row.original)
+							}
+						>
+							<CalendarPlus aria-hidden="true" />
+						</Button>
+					)}
+					{canUpdatePatients && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={`Edit ${displayName(row.original.firstName, row.original.lastName)}`}
+							title="Edit patient"
+							onClick={() => onEdit(row.original)}
+						>
+							<Pencil aria-hidden="true" />
+						</Button>
+					)}
+					{canDeletePatients && (
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							aria-label={`Delete ${displayName(row.original.firstName, row.original.lastName)}`}
+							title="Delete patient"
+							disabled={isDeleting}
+							onClick={() => onDelete(row.original)}
+						>
+							<Trash2 aria-hidden="true" />
+						</Button>
+					)}
 				</div>
 			),
-		},
-	];
+		});
+	}
 
 	return (
 		<DataTable

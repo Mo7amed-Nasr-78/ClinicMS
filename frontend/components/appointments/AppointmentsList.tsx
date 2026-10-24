@@ -61,12 +61,14 @@ function getAppointmentColumns(
 				return (
 					<div className="flex min-w-40 flex-col font-medium">
 						<span>{patientName(patient)}</span>
-						<span className="text-xs text-ink-muted">
-							{patient?.email ?? ""}
-						</span>
 					</div>
 				);
 			},
+		},
+		{
+			id: "email",
+			header: "Email",
+			cell: ({ row }) => row.original.patient.email,
 		},
 		{
 			id: "doctor",
@@ -203,17 +205,14 @@ export function AppointmentsList({
 
 	return (
 		<main className="mx-auto w-full pb-10">
-			<header className="flex flex-col gap-4 border-b border-line pb-4 pt-3 sm:flex-row sm:items-end sm:justify-between">
+			<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
 				<div>
-					<h1 className="font-serif text-4xl font-normal text-ink">
-						Appointments
-					</h1>
 					<p className="mt-2 text-sm text-ink-muted">
 						{pagination.total} appointment record
 						{pagination.total === 1 ? "" : "s"}
 					</p>
 				</div>
-				<div className="flex flex-col gap-2 sm:flex-row">
+				<div className="flex flex-col gap-2 sm:flex-row ml-auto">
 					<div className="relative w-full sm:w-72">
 						<Search
 							className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
@@ -269,7 +268,7 @@ export function AppointmentsList({
 					</Button>
 				</div>
 			) : (
-				<section className="mt-6 rounded-xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+				<section className="mt-4 rounded-xl border border-line bg-surface p-4 shadow-sm sm:p-5">
 					<DataTable
 						columns={columns}
 						data={visibleAppointments}

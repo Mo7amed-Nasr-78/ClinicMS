@@ -36,12 +36,14 @@ export class PatientsController {
 		@Req() request: AuthenticatedRequest,
 		@Query("page") page?: string,
 		@Query("limit") limit?: string,
+		@Query("status") status?: string,
 	) {
 		return this.patientsService.findAll(
 			request.user.sub,
 			request.user.role,
 			page ? Number(page) : 1,
 			limit ? Number(limit) : 20,
+			status,
 		);
 	}
 
@@ -52,6 +54,30 @@ export class PatientsController {
 		@Param("patientId", ParseUUIDPipe) patientId: string,
 	) {
 		return this.patientsService.findOne(request.user.sub, patientId);
+	}
+
+	@Get(":patientId/medical-records")
+	@RequirePermissions(Permission.VIEW_MEDICAL_RECORDS)
+	findMedicalRecords(
+		@Req() request: AuthenticatedRequest,
+		@Param("patientId", ParseUUIDPipe) patientId: string,
+	) {
+		return this.patientsService.findMedicalRecords(
+			request.user.sub,
+			patientId,
+		);
+	}
+
+	@Get(":patientId/prescriptions")
+	@RequirePermissions(Permission.VIEW_PRESCRIPTIONS)
+	findPrescriptions(
+		@Req() request: AuthenticatedRequest,
+		@Param("patientId", ParseUUIDPipe) patientId: string,
+	) {
+		return this.patientsService.findPrescriptions(
+			request.user.sub,
+			patientId,
+		);
 	}
 
 	@Post()

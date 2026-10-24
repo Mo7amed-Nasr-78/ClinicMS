@@ -42,6 +42,12 @@ export const NAV_ITEMS = [
 		permission: "view:doctors",
 	},
 	{
+		label: "Receptionists",
+		icon: UserCog,
+		href: "/dashboard/receptionists",
+		permission: "view:receptionists",
+	},
+	{
 		label: "Reports",
 		icon: BarChart3,
 		children: [
@@ -56,6 +62,12 @@ export const NAV_ITEMS = [
 				label: "Patients",
 				href: "/dashboard/reports/patients",
 				permission: "view:patients",
+			},
+			{
+				key: "Appointments report",
+				label: "Appointments",
+				href: "/dashboard/reports/appointments",
+				permission: "view:appointments",
 			},
 		],
 	},

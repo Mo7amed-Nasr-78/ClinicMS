@@ -41,7 +41,7 @@
     "execute": [
       {
         "description": "create table \"Appointment\"",
-        "sql": "CREATE TABLE \"public\".\"Appointment\" (\n  \"appointmentDate\" timestamptz NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdBy\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"endTime\" timestamptz NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startTime\" timestamptz NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Appointment_status_check_f18c6e1d\" CHECK (\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followup'))\n)",
+        "sql": "CREATE TABLE \"public\".\"Appointment\" (\n  \"appointmentDate\" timestamptz NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdBy\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"endTime\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startTime\" text NOT NULL,\n  \"status\" text DEFAULT 'scheduled' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Appointment_status_check_8d451e43\" CHECK (\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followUp'))\n)",
         "params": []
       }
     ],
@@ -314,7 +314,7 @@
     "execute": [
       {
         "description": "create table \"Patient\"",
-        "sql": "CREATE TABLE \"public\".\"Patient\" (\n  \"address\" text NOT NULL,\n  \"allergies\" text NOT NULL,\n  \"bloodType\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" text NOT NULL,\n  \"email\" text,\n  \"emergencyContact\" text NOT NULL,\n  \"firstName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"lastName\" text NOT NULL,\n  \"phone\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Patient_gender_check_6679dc61\" CHECK (\"gender\" IN ('male', 'female')),\n  CONSTRAINT \"Patient_status_check_b116ce31\" CHECK (\"status\" IN ('upcoming', 'waiting', 'in_room', 'complete'))\n)",
+        "sql": "CREATE TABLE \"public\".\"Patient\" (\n  \"address\" text NOT NULL,\n  \"allergies\" text NOT NULL,\n  \"bloodType\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" text NOT NULL,\n  \"email\" text,\n  \"emergencyContact\" text NOT NULL,\n  \"firstName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"lastName\" text NOT NULL,\n  \"phone\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Patient_gender_check_6679dc61\" CHECK (\"gender\" IN ('male', 'female')),\n  CONSTRAINT \"Patient_status_check_673032b6\" CHECK (\"status\" IN ('upcoming', 'waiting', 'inRoom', 'followUp', 'complete'))\n)",
         "params": []
       }
     ],
@@ -363,6 +363,45 @@
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
         "params": [
           "\"public\".\"Prescription\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Receptionist",
+    "label": "Create table \"Receptionist\"",
+    "summary": "Creates table \"Receptionist\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Receptionist"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Receptionist\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Receptionist\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Receptionist\"",
+        "sql": "CREATE TABLE \"public\".\"Receptionist\" (\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"userId\" character(36) NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Receptionist_status_check_db0e9a2b\" CHECK (\"status\" IN ('active', 'inActive', 'suspended'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Receptionist\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Receptionist\""
         ]
       }
     ]
@@ -528,6 +567,48 @@
           "Patient_email_key",
           "public",
           "\"public\".\"Patient\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Receptionist.Receptionist_userId_key",
+    "label": "Add unique constraint on \"Receptionist\" (userId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Receptionist_userId_key",
+        "table": "Receptionist"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Receptionist_userId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Receptionist_userId_key",
+          "public",
+          "\"public\".\"Receptionist\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Receptionist_userId_key\"",
+        "sql": "ALTER TABLE \"public\".\"Receptionist\" ADD CONSTRAINT \"Receptionist_userId_key\" UNIQUE (\"userId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Receptionist_userId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Receptionist_userId_key",
+          "public",
+          "\"public\".\"Receptionist\""
         ]
       }
     ]

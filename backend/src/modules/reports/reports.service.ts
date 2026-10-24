@@ -4,6 +4,12 @@ import { findClinicIdForUser } from "../clinics/clinics.actions";
 import type { ClinicId } from "../clinics/clinics.actions";
 import { findAllDoctors } from "../doctors/doctors.actions";
 import { findAllPatientsByClinicId } from "../patients/patients.actions";
+import { Role } from "../../authorization/enums/role.enum.ts";
+import {
+	findAppointmentsForDate,
+	findDoctorIdByUserId,
+} from "../appointments/appointments.actions";
+import { getUtcDayBounds } from "../doctors/availability.ts";
 
 type DoctorFilters = {
 	status?: string;
@@ -19,6 +25,36 @@ type PatientFilters = {
 
 @Injectable()
 export class ReportsService {
+	async findTodaysAppointments(userId: string, role: string) {
+		const clinic = await findClinicIdForUser(userId);
+		if (!clinic) {
+			throw new NotFoundException("Clinic not found");
+		}
+
+		const today = getUtcDayBounds(
+			new Date().toISOString().slice(0, 10),
+		);
+		if (!today) {
+			throw new NotFoundException("Today's date is unavailable");
+		}
+
+		let doctorId: string | undefined;
+		if (role === Role.DOCTOR) {
+			const doctor = await findDoctorIdByUserId(userId, clinic.id);
+			if (!doctor) {
+				throw new NotFoundException("Doctor not found");
+			}
+			doctorId = doctor;
+		}
+
+		return findAppointmentsForDate(
+			clinic.id as ClinicId,
+			today.start,
+			today.end,
+			doctorId,
+		);
+	}
+
 	async findDoctors(userId: string, filters: DoctorFilters) {
 		const clinic = await findClinicIdForUser(userId);
 		if (!clinic) {

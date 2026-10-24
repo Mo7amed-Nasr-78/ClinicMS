@@ -38,6 +38,7 @@ export class AppointmentsController {
 		@Query("limit") limit?: string,
 		@Query("appointmentDate") appointmentDate?: string,
 		@Query("status") status?: string,
+		@Query("patientId") patientId?: string,
 	) {
 		return this.appointmentsService.findAll(
 			request.user.sub,
@@ -46,6 +47,7 @@ export class AppointmentsController {
 			limit ? Number(limit) : 20,
 			appointmentDate,
 			status,
+			patientId,
 		);
 	}
 

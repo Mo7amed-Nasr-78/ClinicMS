@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/6a62ea1191003b5a4a11e019fabc58f1365047e8c456882905a9811d1db50116/contract';
-import endContract from '../../snapshots/6a62ea1191003b5a4a11e019fabc58f1365047e8c456882905a9811d1db50116/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/6ccea7ddbd9c63897e18881f0f3b98ab1c154de04d490d0e98cf89a078c1a707/contract';
+import endContract from '../../snapshots/6ccea7ddbd9c63897e18881f0f3b98ab1c154de04d490d0e98cf89a078c1a707/contract.json' with { type: 'json' };
 import {
   Migration,
   MigrationCLI,
@@ -39,10 +39,7 @@ export default class M extends Migration<never, End> {
             notNull: true,
             codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
           }),
-          col('endTime', 'timestamptz', {
-            notNull: true,
-            codecRef: { codecId: 'pg/timestamptz-temporal@1' },
-          }),
+          col('endTime', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('id', 'character(36)', {
             notNull: true,
             codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
@@ -53,11 +50,12 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
           }),
           col('reason', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
-          col('startTime', 'timestamptz', {
+          col('startTime', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('status', 'text', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamptz-temporal@1' },
+            default: lit('scheduled'),
+            codecRef: { codecId: 'pg/text@1' },
           }),
-          col('status', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('updatedAt', 'timestamptz', {
             notNull: true,
             codecRef: { codecId: 'pg/timestamptz-string@1' },
@@ -66,8 +64,8 @@ export default class M extends Migration<never, End> {
         constraints: [
           primaryKey(['id']),
           checkExpression(
-            'Appointment_status_check_f18c6e1d',
-            "\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followup')",
+            'Appointment_status_check_8d451e43',
+            "\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followUp')",
           ),
         ],
       }),
@@ -355,8 +353,8 @@ export default class M extends Migration<never, End> {
           primaryKey(['id']),
           checkExpression('Patient_gender_check_6679dc61', "\"gender\" IN ('male', 'female')"),
           checkExpression(
-            'Patient_status_check_b116ce31',
-            "\"status\" IN ('upcoming', 'waiting', 'in_room', 'complete')",
+            'Patient_status_check_673032b6',
+            "\"status\" IN ('upcoming', 'waiting', 'inRoom', 'followUp', 'complete')",
           ),
         ],
       }),
@@ -393,6 +391,41 @@ export default class M extends Migration<never, End> {
           }),
         ],
         constraints: [primaryKey(['id'])],
+      }),
+      this.createTable({
+        schema: 'public',
+        table: 'Receptionist',
+        columns: [
+          col('clinicId', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('createdAt', 'timestamptz', {
+            notNull: true,
+            default: fn('now()'),
+            codecRef: { codecId: 'pg/timestamptz-string@1' },
+          }),
+          col('id', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('status', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('updatedAt', 'timestamptz', {
+            notNull: true,
+            codecRef: { codecId: 'pg/timestamptz-string@1' },
+          }),
+          col('userId', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+        ],
+        constraints: [
+          primaryKey(['id']),
+          checkExpression(
+            'Receptionist_status_check_db0e9a2b',
+            "\"status\" IN ('active', 'inActive', 'suspended')",
+          ),
+        ],
       }),
       this.createTable({
         schema: 'public',
@@ -454,6 +487,12 @@ export default class M extends Migration<never, End> {
         table: 'Patient',
         constraint: 'Patient_email_key',
         columns: ['email'],
+      }),
+      this.addUnique({
+        schema: 'public',
+        table: 'Receptionist',
+        constraint: 'Receptionist_userId_key',
+        columns: ['userId'],
       }),
       this.addUnique({
         schema: 'public',

@@ -50,6 +50,15 @@ export class ClinicsController {
 		return this.clinicsService.findMine(request.user.sub);
 	}
 
+	@Get("stats")
+	@RequirePermissions(Permission.VIEW_APPOINTMENTS)
+	findStats(@Req() request: AuthenticatedRequest) {
+		return this.clinicsService.findStats(
+			request.user.sub,
+			request.user.role,
+		);
+	}
+
 	@Get(":clinicId/doctors")
 	@RequirePermissions(Permission.VIEW_DOCTORS)
 	findDoctors(
