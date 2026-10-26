@@ -39,4 +39,9 @@ export enum Permission {
 	VIEW_PRESCRIPTION_DETAILS = "view:prescriptions:detail",
 	UPDATE_PRESCRIPTIONS = "update:prescriptions",
 	DELETE_PRESCRIPTIONS = "delete:prescriptions",
+	CREATE_BILLS = "create:bills",
+	VIEW_BILLS = "view:bills",
+	VIEW_BILL_DETAILS = "view:bills:detail",
+	UPDATE_BILLS = "update:bills",
+	DELETE_BILLS = "delete:bills",
 }

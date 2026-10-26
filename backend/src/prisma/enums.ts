@@ -36,6 +36,12 @@ export const appointment_Status = {
 	RESCHEDULED: "rescheduled",
 } as const;
 
+export const bill_Status = {
+	UNPAID: "unpaid",
+	PAID: "paid",
+	CANCELLED: "cancelled",
+} as const;
+
 const pgText = {
 	codecId: "pg/text@1",
 	nativeType: "text",
@@ -85,4 +91,12 @@ export const AppointmentStatus = enumType(
 	member("cancelled", appointment_Status.CANCELLED),
 	member("noShow", appointment_Status.NO_SHOW),
 	member("rescheduled", appointment_Status.RESCHEDULED),
+);
+
+export const BillStatus = enumType(
+	"bill_status",
+	pgText,
+	member("unpaid", bill_Status.UNPAID),
+	member("paid", bill_Status.PAID),
+	member("cancelled", bill_Status.CANCELLED),
 );

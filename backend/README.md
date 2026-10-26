@@ -20,6 +20,18 @@ The deploy script builds the framework output, provisions Prisma Postgres when s
 
 The starter users are inserted idempotently from `src/prisma/seed.ts` on the first database query through the Composer service binding.
 
+## Clinic logo storage
+
+Clinic logos uploaded during clinic creation are stored in Supabase Storage through its S3-compatible API. Configure these backend environment variables:
+
+- `SUPABASE_S3_ENDPOINT`
+- `SUPABASE_S3_REGION`
+- `SUPABASE_S3_ACCESS_KEY_ID`
+- `SUPABASE_S3_SECRET_ACCESS_KEY`
+- `SUPABASE_BUCKET`
+
+Create the bucket in Supabase before uploading logos and make it public so the stored object URLs can be displayed by the frontend.
+
 
 ## Prisma
 

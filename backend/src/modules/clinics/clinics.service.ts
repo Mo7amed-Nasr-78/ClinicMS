@@ -5,6 +5,7 @@ import {
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
+import { ClinicLogoStorageService } from "./clinic-logo-storage.service";
 import {
 	createClinic,
 	deleteClinic,
@@ -32,6 +33,8 @@ export class ClinicsService {
 	constructor(
 		@Inject(AuthorizationService)
 		private readonly authorizationService: AuthorizationService,
+		@Inject(ClinicLogoStorageService)
+		private readonly clinicLogoStorage: ClinicLogoStorageService,
 	) {}
 
 	async findAll(ownerId: string) {
@@ -147,14 +150,21 @@ export class ClinicsService {
 		return findPatientsByClinicId(ownedClinicId, page, limit);
 	}
 
-	async create(ownerId: string, input: CreateClinicDto) {
+	async create(
+		ownerId: string,
+		input: CreateClinicDto,
+		uploadedLogo?: { buffer: Buffer; mimetype: string },
+	) {
 		// console.log(ownerId);
 		const existingClinic = await findClinicByOwnerId(ownerId);
 		if (existingClinic) {
 			throw new ConflictException("User already owns a clinic");
 		}
 
-		return createClinic(ownerId, input);
+		const logoUrl = uploadedLogo
+			? await this.clinicLogoStorage.upload(uploadedLogo)
+			: input.logo;
+		return createClinic(ownerId, { ...input, logo: logoUrl });
 	}
 
 	async updateById(

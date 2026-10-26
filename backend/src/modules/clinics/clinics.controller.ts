@@ -116,12 +116,7 @@ export class ClinicsController {
 		@Body() input: CreateClinicDto,
 		@UploadedFile() logo?: UploadedClinicLogo,
 	) {
-		return this.clinicsService.create(request.user.sub, {
-			...input,
-			logo: logo
-				? `data:${logo.mimetype};base64,${logo.buffer.toString("base64")}`
-				: input.logo,
-		});
+		return this.clinicsService.create(request.user.sub, input, logo);
 	}
 
 	@Patch(":clinicId")

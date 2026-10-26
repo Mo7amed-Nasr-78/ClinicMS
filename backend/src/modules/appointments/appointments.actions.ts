@@ -169,6 +169,7 @@ export function findDoctorAppointmentsForDate(
 ) {
 	return client.orm.public.Appointment.select(
 		"id",
+		"patientId",
 		"status",
 		"startTime",
 		"endTime",
@@ -265,7 +266,11 @@ export async function findDoctorDashboardStats(
 }
 
 export function findDoctorInClinic(clinicId: ClinicId, doctorId: string) {
-	return db.orm.public.Doctor.select("id", "status").first({
+	return db.orm.public.Doctor.select(
+		"id",
+		"status",
+		"consultationFee",
+	).first({
 		id: doctorId as DoctorId,
 		clinicId,
 	});

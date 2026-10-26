@@ -71,7 +71,12 @@ export const NAV_ITEMS = [
 			},
 		],
 	},
-	{ label: "Billing", icon: CreditCard },
+	{
+		label: "Bills",
+		icon: CreditCard,
+		href: "/dashboard/bills",
+		permission: "view:bills",
+	},
 	// { label: "Staff", icon: UserCog },
 	{ label: "Settings", icon: Settings },
 ];

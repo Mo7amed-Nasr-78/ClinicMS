@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
 import { useClinicStore } from "@/stores/clinicStore";
 
 function RefreshSession({ children }: { children: ReactNode }) {
 	const { status, update } = useSession();
+	const pathname = usePathname();
 	const fetchMyClinic = useClinicStore((state) => state.fetchMyClinic);
 	const refreshStarted = useRef(false);
 
@@ -26,14 +28,16 @@ function RefreshSession({ children }: { children: ReactNode }) {
 					return;
 				}
 
-				try {
-					await fetchMyClinic();
-				} catch {
-					// Clinic loading should not invalidate a refreshed session.
+				if (pathname !== "/onboarding") {
+					try {
+						await fetchMyClinic();
+					} catch {
+						// Clinic loading should not invalidate a refreshed session.
+					}
 				}
 			})
 			.catch(() => signOut({ redirectTo: "/login" }));
-	}, [fetchMyClinic, status, update]);
+	}, [fetchMyClinic, pathname, status, update]);
 
 	return children;
 }

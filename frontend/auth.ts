@@ -23,10 +23,8 @@ interface CurrentUser {
 	permissions: string[];
 }
 
-interface CurrentUserResponse {
-	user?: Omit<CurrentUser, "permissions"> & {
-		permissions?: unknown;
-	};
+interface CurrentUserResponse extends Omit<CurrentUser, "permissions"> {
+	permissions?: unknown;
 }
 
 interface AuthToken {
@@ -41,19 +39,17 @@ async function getCurrentUser(
 	accessToken: string,
 ): Promise<CurrentUser | null> {
 	try {
-		const response = await fetch(`${authApiUrl}/clinics/me`, {
+		const response = await fetch(`${authApiUrl}/users/me`, {
 			headers: { Authorization: `Bearer ${accessToken}` },
 			cache: "no-store",
 		});
 		if (!response.ok) return null;
 
 		const data = (await response.json()) as CurrentUserResponse;
-		if (!data.user) return null;
-
 		return {
-			...data.user,
-			permissions: Array.isArray(data.user.permissions)
-				? data.user.permissions.filter(
+			...data,
+			permissions: Array.isArray(data.permissions)
+				? data.permissions.filter(
 						(permission): permission is string =>
 							typeof permission === "string",
 					)

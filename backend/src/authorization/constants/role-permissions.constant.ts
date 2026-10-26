@@ -43,6 +43,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 		Permission.VIEW_PRESCRIPTION_DETAILS,
 		Permission.UPDATE_PRESCRIPTIONS,
 		Permission.DELETE_PRESCRIPTIONS,
+		Permission.CREATE_BILLS,
+		Permission.VIEW_BILLS,
+		Permission.VIEW_BILL_DETAILS,
+		Permission.UPDATE_BILLS,
+		Permission.DELETE_BILLS,
 	],
 	[Role.DOCTOR]: [
 		Permission.VIEW_CLINICS,
@@ -86,5 +91,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 		Permission.CREATE_APPOINTMENTS,
 		Permission.UPDATE_APPOINTMENTS,
 		Permission.DELETE_APPOINTMENTS,
+		Permission.CREATE_BILLS,
+		Permission.VIEW_BILLS,
+		Permission.VIEW_BILL_DETAILS,
+		Permission.UPDATE_BILLS,
+		Permission.DELETE_BILLS,
 	],
 };

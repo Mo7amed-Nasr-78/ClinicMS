@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/6ccea7ddbd9c63897e18881f0f3b98ab1c154de04d490d0e98cf89a078c1a707/contract';
-import endContract from '../../snapshots/6ccea7ddbd9c63897e18881f0f3b98ab1c154de04d490d0e98cf89a078c1a707/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/4355ecc8eb27448a3317f9447413bedd80fc06751311a215c9c6c5cf8dc1893b/contract';
+import endContract from '../../snapshots/4355ecc8eb27448a3317f9447413bedd80fc06751311a215c9c6c5cf8dc1893b/contract.json' with { type: 'json' };
 import {
   Migration,
   MigrationCLI,
@@ -64,8 +64,54 @@ export default class M extends Migration<never, End> {
         constraints: [
           primaryKey(['id']),
           checkExpression(
-            'Appointment_status_check_8d451e43',
-            "\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followUp')",
+            'Appointment_status_check_4ddfd9ea',
+            "\"status\" IN ('scheduled', 'confirmed', 'checkedIn', 'inProgress', 'completed', 'cancelled', 'noShow', 'rescheduled')",
+          ),
+        ],
+      }),
+      this.createTable({
+        schema: 'public',
+        table: 'Bill',
+        columns: [
+          col('amount', 'numeric', { notNull: true, codecRef: { codecId: 'pg/numeric@1' } }),
+          col('appointmentId', 'character(36)', {
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('clinicId', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('createdAt', 'timestamptz', {
+            notNull: true,
+            default: fn('now()'),
+            codecRef: { codecId: 'pg/timestamptz-string@1' },
+          }),
+          col('description', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('dueDate', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+          col('id', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('notes', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+          col('patientId', 'character(36)', {
+            notNull: true,
+            codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
+          }),
+          col('status', 'text', {
+            notNull: true,
+            default: lit('unpaid'),
+            codecRef: { codecId: 'pg/text@1' },
+          }),
+          col('updatedAt', 'timestamptz', {
+            notNull: true,
+            codecRef: { codecId: 'pg/timestamptz-string@1' },
+          }),
+        ],
+        constraints: [
+          primaryKey(['id']),
+          checkExpression(
+            'Bill_status_check_c777139e',
+            "\"status\" IN ('unpaid', 'paid', 'cancelled')",
           ),
         ],
       }),
@@ -322,6 +368,9 @@ export default class M extends Migration<never, End> {
         columns: [
           col('address', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('allergies', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('archivedAt', 'timestamp', { codecRef: { codecId: 'pg/timestamp-temporal@1' } }),
+          col('archivedBy', 'text', { codecRef: { codecId: 'pg/text@1' } }),
+          col('archivedReason', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('bloodType', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('clinicId', 'character(36)', {
             notNull: true,
@@ -342,8 +391,13 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'sql/char@1', typeParams: { length: 36 } },
           }),
           col('lastName', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('last_visit_at', 'timestamp', { codecRef: { codecId: 'pg/timestamp-temporal@1' } }),
           col('phone', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
-          col('status', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
+          col('status', 'text', {
+            notNull: true,
+            default: lit('new'),
+            codecRef: { codecId: 'pg/text@1' },
+          }),
           col('updatedAt', 'timestamptz', {
             notNull: true,
             codecRef: { codecId: 'pg/timestamptz-string@1' },
@@ -353,8 +407,8 @@ export default class M extends Migration<never, End> {
           primaryKey(['id']),
           checkExpression('Patient_gender_check_6679dc61', "\"gender\" IN ('male', 'female')"),
           checkExpression(
-            'Patient_status_check_673032b6',
-            "\"status\" IN ('upcoming', 'waiting', 'inRoom', 'followUp', 'complete')",
+            'Patient_status_check_cbf3b7f6',
+            "\"status\" IN ('new', 'active', 'inActive', 'archived')",
           ),
         ],
       }),

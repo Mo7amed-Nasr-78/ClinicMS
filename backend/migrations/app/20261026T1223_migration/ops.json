@@ -41,7 +41,7 @@
     "execute": [
       {
         "description": "create table \"Appointment\"",
-        "sql": "CREATE TABLE \"public\".\"Appointment\" (\n  \"appointmentDate\" timestamptz NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdBy\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"endTime\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startTime\" text NOT NULL,\n  \"status\" text DEFAULT 'scheduled' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Appointment_status_check_8d451e43\" CHECK (\"status\" IN ('inWalk', 'scheduled', 'Telemedicine', 'followUp'))\n)",
+        "sql": "CREATE TABLE \"public\".\"Appointment\" (\n  \"appointmentDate\" timestamptz NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdBy\" text NOT NULL,\n  \"doctorId\" character(36) NOT NULL,\n  \"endTime\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text NOT NULL,\n  \"patientId\" character(36) NOT NULL,\n  \"reason\" text NOT NULL,\n  \"startTime\" text NOT NULL,\n  \"status\" text DEFAULT 'scheduled' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Appointment_status_check_4ddfd9ea\" CHECK (\"status\" IN ('scheduled', 'confirmed', 'checkedIn', 'inProgress', 'completed', 'cancelled', 'noShow', 'rescheduled'))\n)",
         "params": []
       }
     ],
@@ -51,6 +51,45 @@
         "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
         "params": [
           "\"public\".\"Appointment\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Bill",
+    "label": "Create table \"Bill\"",
+    "summary": "Creates table \"Bill\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Bill"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Bill\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Bill\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Bill\"",
+        "sql": "CREATE TABLE \"public\".\"Bill\" (\n  \"amount\" numeric NOT NULL,\n  \"appointmentId\" character(36),\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"description\" text NOT NULL,\n  \"dueDate\" text,\n  \"id\" character(36) NOT NULL,\n  \"notes\" text,\n  \"patientId\" character(36) NOT NULL,\n  \"status\" text DEFAULT 'unpaid' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Bill_status_check_c777139e\" CHECK (\"status\" IN ('unpaid', 'paid', 'cancelled'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Bill\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Bill\""
         ]
       }
     ]
@@ -314,7 +353,7 @@
     "execute": [
       {
         "description": "create table \"Patient\"",
-        "sql": "CREATE TABLE \"public\".\"Patient\" (\n  \"address\" text NOT NULL,\n  \"allergies\" text NOT NULL,\n  \"bloodType\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" text NOT NULL,\n  \"email\" text,\n  \"emergencyContact\" text NOT NULL,\n  \"firstName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"lastName\" text NOT NULL,\n  \"phone\" text NOT NULL,\n  \"status\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Patient_gender_check_6679dc61\" CHECK (\"gender\" IN ('male', 'female')),\n  CONSTRAINT \"Patient_status_check_673032b6\" CHECK (\"status\" IN ('upcoming', 'waiting', 'inRoom', 'followUp', 'complete'))\n)",
+        "sql": "CREATE TABLE \"public\".\"Patient\" (\n  \"address\" text NOT NULL,\n  \"allergies\" text NOT NULL,\n  \"archivedAt\" timestamp,\n  \"archivedBy\" text,\n  \"archivedReason\" text,\n  \"bloodType\" text NOT NULL,\n  \"clinicId\" character(36) NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"dateOfBirth\" text NOT NULL,\n  \"email\" text,\n  \"emergencyContact\" text NOT NULL,\n  \"firstName\" text NOT NULL,\n  \"gender\" text NOT NULL,\n  \"id\" character(36) NOT NULL,\n  \"lastName\" text NOT NULL,\n  \"last_visit_at\" timestamp,\n  \"phone\" text NOT NULL,\n  \"status\" text DEFAULT 'new' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Patient_gender_check_6679dc61\" CHECK (\"gender\" IN ('male', 'female')),\n  CONSTRAINT \"Patient_status_check_cbf3b7f6\" CHECK (\"status\" IN ('new', 'active', 'inActive', 'archived'))\n)",
         "params": []
       }
     ],

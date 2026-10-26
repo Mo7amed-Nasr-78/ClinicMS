@@ -5,6 +5,7 @@ import { ForbiddenException } from "@nestjs/common";
 import type { ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AppointmentsController } from "../modules/appointments/appointments.controller.ts";
+import { BillsController } from "../modules/bills/bills.controller.ts";
 import { ClinicsController } from "../modules/clinics/clinics.controller.ts";
 import { DoctorSchedulesController } from "../modules/doctor-schedules/doctor-schedules.controller.ts";
 import { DoctorsController } from "../modules/doctors/doctors.controller.ts";
@@ -88,6 +89,11 @@ test("role permission mapping contains the expected capabilities", async (t) => 
 			Permission.CREATE_APPOINTMENTS,
 			Permission.UPDATE_APPOINTMENTS,
 			Permission.DELETE_APPOINTMENTS,
+			Permission.CREATE_BILLS,
+			Permission.VIEW_BILLS,
+			Permission.VIEW_BILL_DETAILS,
+			Permission.UPDATE_BILLS,
+			Permission.DELETE_BILLS,
 		]);
 	});
 });
@@ -238,6 +244,20 @@ test("resource controllers declare the requested permissions", () => {
 			AppointmentsController.prototype.findAll,
 		),
 		[Permission.VIEW_APPOINTMENTS],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			BillsController.prototype.findAll,
+		),
+		[Permission.VIEW_BILLS],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			BillsController.prototype.create,
+		),
+		[Permission.CREATE_BILLS],
 	);
 	assert.deepEqual(
 		Reflect.getMetadata(

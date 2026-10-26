@@ -1,5 +1,12 @@
 import { defineContract } from "@prisma/orm-postgres/contract-builder";
-import { UserRole, UserStatus, PatientGender, PatientStatus, AppointmentStatus } from "./enums.ts";
+import {
+	UserRole,
+	UserStatus,
+	PatientGender,
+	PatientStatus,
+	AppointmentStatus,
+	BillStatus,
+} from "./enums.ts";
 
 export const contract = defineContract({}, ({ field, model, rel }) => {
 	const Clinic = model("Clinic", {
@@ -154,6 +161,22 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 		},
 	});
 
+	const Bill = model("Bill", {
+		fields: {
+			id: field.id.uuidv7String(),
+			clinicId: field.uuidString(),
+			patientId: field.uuidString(),
+			appointmentId: field.uuidString().optional(),
+			amount: field.decimal(),
+			description: field.text(),
+			status: field.namedType(BillStatus).default("unpaid"),
+			dueDate: field.text().optional(),
+			notes: field.text().optional(),
+			createdAt: field.temporal.createdAtString(),
+			updatedAt: field.temporal.updatedAtString(),
+		},
+	});
+
 	const Notification = model("Notification", {
 		fields: {
 			id: field.id.uuidv7String(),
@@ -199,6 +222,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 				appointments: rel.hasMany(Appointment, {
 					by: "clinicId",
 				}),
+				bills: rel.hasMany(Bill, { by: "clinicId" }),
 				doctors: rel.hasMany(Doctor, { by: "clinicId" }),
 				receptionists: rel.hasMany(Receptionist, { by: "clinicId" }),
 				patients: rel.hasMany(Patient, { by: "clinicId" }),
@@ -262,6 +286,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 				appointments: rel.hasMany(Appointment, {
 					by: "patientId",
 				}),
+				bills: rel.hasMany(Bill, { by: "patientId" }),
 				files: rel.hasMany(File, { by: "ownerId" }),
 			}),
 			MedicalRecord: MedicalRecord.relations({
@@ -301,10 +326,25 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
 				prescriptions: rel.hasMany(Prescription, {
 					by: "appointmentId",
 				}),
+				bills: rel.hasMany(Bill, { by: "appointmentId" }),
 			}),
 			Prescription: Prescription.relations({
 				doctor: rel.belongsTo(Doctor, {
 					from: "doctorId",
+					to: "id",
+				}),
+				patient: rel.belongsTo(Patient, {
+					from: "patientId",
+					to: "id",
+				}),
+				appointment: rel.belongsTo(Appointment, {
+					from: "appointmentId",
+					to: "id",
+				}),
+			}),
+			Bill: Bill.relations({
+				clinic: rel.belongsTo(Clinic, {
+					from: "clinicId",
 					to: "id",
 				}),
 				patient: rel.belongsTo(Patient, {

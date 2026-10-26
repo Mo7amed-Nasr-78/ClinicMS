@@ -11,6 +11,38 @@ import { Logomark } from "../shared/Logomark";
 import { useClinicStore } from "@/stores/clinicStore";
 import { NAV_ITEMS } from "./data";
 
+function ClinicBrand() {
+	const clinic = useClinicStore((state) => state.clinic);
+	const logo = clinic?.logo || clinic?.logoUrl;
+
+	return (
+		<div className="flex min-w-0 items-center gap-3">
+			<div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-2 text-brand-deep">
+				{logo ? (
+					<Image
+						src={logo}
+						alt={`${clinic?.name ?? "Clinic"} logo`}
+						width={40}
+						height={40}
+						unoptimized
+						className="size-full object-cover"
+					/>
+				) : (
+					<Logomark size={26} />
+				)}
+			</div>
+			<div className="min-w-0">
+				<p className="truncate text-sm font-semibold leading-tight text-brand-deep">
+					{clinic?.name || "Clinic"}
+				</p>
+				<p className="truncate text-xs font-normal leading-tight text-ink-muted">
+					Wardline
+				</p>
+			</div>
+		</div>
+	);
+}
+
 function NavList({ onNavigate, activeItem }) {
 	const activeReport = [
 		"Doctors report",
@@ -189,9 +221,8 @@ export function Sidebar({ open, onClose, activeItem = "Dashboard" }) {
 		<>
 			{/* Desktop */}
 			<aside className="hidden h-screen lg:flex lg:flex-col lg:w-60 lg:shrink-0 border-r border-line bg-surface">
-				<div className="flex items-center gap-2 px-5 h-16 border-b border-line text-brand-deep font-semibold text-[1.05rem]">
-					<Logomark />
-					Wardline
+				<div className="flex h-16 items-center border-b border-line px-3">
+					<ClinicBrand />
 				</div>
 				<NavList activeItem={activeItem} />
 				<UserCard />
@@ -208,11 +239,11 @@ export function Sidebar({ open, onClose, activeItem = "Dashboard" }) {
 					<aside className="absolute left-0 top-0 bottom-0 w-72 max-w-[80%] bg-surface border-r border-line flex flex-col">
 						<div className="flex items-center justify-between px-5 h-16 border-b border-line">
 							<a
-								href="#"
-								className="flex items-center gap-2 text-brand-deep font-semibold text-[1.05rem]"
+								href="/dashboard"
+								onClick={onClose}
+								className="min-w-0"
 							>
-								<Logomark />
-								Wardline
+								<ClinicBrand />
 							</a>
 							<button
 								onClick={onClose}

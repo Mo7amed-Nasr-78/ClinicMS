@@ -17,6 +17,7 @@ import {
 } from "../doctor-schedules/doctor-schedules.actions.ts";
 import {
 	getUtcDayBounds,
+	isAppointmentBlocking,
 	isAppointmentSlotAvailable,
 	parseTimeMinutes,
 } from "../doctors/availability.ts";
@@ -34,6 +35,7 @@ import {
 import type { AppointmentStatus, PatientId } from "./appointments.actions";
 import type { CreateAppointmentDto } from "./DTOs/createAppointment.dto";
 import type { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto";
+import { createBillForAppointment } from "../bills/bills.actions.ts";
 
 @Injectable()
 export class AppointmentsService {
@@ -114,7 +116,7 @@ export class AppointmentsService {
 
 	async create(ownerId: string, input: CreateAppointmentDto) {
 		const clinicId = await this.getClinicId(ownerId);
-		await this.ensureRelatedRecordsBelongToClinic(
+		const doctor = await this.ensureRelatedRecordsBelongToClinic(
 			clinicId,
 			input.doctorId,
 			input.patientId,
@@ -155,6 +157,17 @@ export class AppointmentsService {
 			]);
 
 			if (
+				this.hasPatientAppointmentOnDate(
+					input.patientId,
+					appointments,
+				)
+			) {
+				throw new ConflictException(
+					"Patient already has an appointment with this doctor on this date",
+				);
+			}
+
+			if (
 				!this.isBookableSlot(
 					date,
 					startTime,
@@ -168,7 +181,20 @@ export class AppointmentsService {
 				);
 			}
 
-			return createAppointment(input, clinicId, ownerId, tx);
+			const appointment = await createAppointment(
+				input,
+				clinicId,
+				ownerId,
+				tx,
+			);
+			await createBillForAppointment(
+				clinicId,
+				appointment.patientId,
+				appointment.id,
+				String(doctor.consultationFee),
+				tx,
+			);
+			return appointment;
 		});
 	}
 
@@ -187,6 +213,7 @@ export class AppointmentsService {
 		}
 		const schedulingFieldsChanged =
 			input.doctorId !== undefined ||
+			input.patientId !== undefined ||
 			input.appointmentDate !== undefined ||
 			input.startTime !== undefined ||
 			input.endTime !== undefined;
@@ -235,6 +262,17 @@ export class AppointmentsService {
 			const appointments = dayAppointments.filter(
 				(item) => item.id !== appointmentId,
 			);
+			if (
+				isAppointmentBlocking(input.status ?? appointment.status) &&
+				this.hasPatientAppointmentOnDate(
+					input.patientId ?? appointment.patientId,
+					appointments,
+				)
+			) {
+				throw new ConflictException(
+					"Patient already has an appointment with this doctor on this date",
+				);
+			}
 
 			if (
 				!this.isBookableSlot(
@@ -306,6 +344,7 @@ export class AppointmentsService {
 				"Patient not found in this clinic",
 			);
 		}
+		return doctor;
 	}
 
 	private async lockDoctorSchedule(
@@ -335,6 +374,19 @@ export class AppointmentsService {
 			endTime,
 			schedules,
 			appointments,
+		);
+	}
+
+	private hasPatientAppointmentOnDate(
+		patientId: string,
+		appointments: Awaited<
+			ReturnType<typeof findDoctorAppointmentsForDate>
+		>,
+	) {
+		return appointments.some(
+			(appointment) =>
+				appointment.patientId === patientId &&
+				isAppointmentBlocking(appointment.status),
 		);
 	}
 }
