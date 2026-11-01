@@ -1,33 +1,37 @@
-import { and } from "@prisma/orm-postgres/orm-client";
 import { db } from "../../prisma/db.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { CreatePatientDto } from "./DTOs/createPatient.dto.ts";
 import type { UpdatePatientDto } from "./DTOs/updatePatient.dto.ts";
 import { Patient_Status } from "../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
-import type { Temporal } from "temporal-polyfill";
 
-const patientFields = [
-	"id",
-	"firstName",
-	"lastName",
-	"dateOfBirth",
-	"gender",
-	"bloodType",
-	"phone",
-	"email",
-	"address",
-	"emergencyContact",
-	"status",
-	"allergies",
-	"clinicId",
-	"createdAt",
-	"updatedAt",
-] as const;
+const patientSelect = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	dateOfBirth: true,
+	gender: true,
+	bloodType: true,
+	phone: true,
+	email: true,
+	address: true,
+	emergencyContact: true,
+	status: true,
+	allergies: true,
+	clinicId: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
-export type PatientId = FieldOutputTypes["public"]["Patient"]["id"];
-type DoctorId = FieldOutputTypes["public"]["Doctor"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+export type PatientId = string;
+type DoctorId = string;
+type UserId = string;
+
+function patientWithDateOnly<T extends { dateOfBirth: Date }>(patient: T) {
+	return {
+		...patient,
+		dateOfBirth: patient.dateOfBirth.toISOString().slice(0, 10),
+	};
+}
 
 function normalizePagination(page: number, limit: number) {
 	const normalizedPage = Number.isFinite(page)
@@ -52,159 +56,172 @@ export async function findPatientsByClinicId(
 	status?: string,
 ) {
 	const pagination = normalizePagination(page, limit);
-	const filters = { clinicId, ...(status ? { status } : {}) };
-	const patientQuery = db.orm.public.Patient.select(...patientFields).where(
-		filters,
-	);
-	const patientCountQuery = db.orm.public.Patient.where(filters);
-	const scopedPatientQuery = doctorId
-		? patientQuery.where((patient) =>
-				patient.appointments.some((appointment) =>
-					and(
-						appointment.doctorId.eq(doctorId),
-						appointment.clinicId.eq(clinicId),
-					),
-				),
-			)
-		: patientQuery;
-	const scopedPatientCountQuery = doctorId
-		? patientCountQuery.where((patient) =>
-				patient.appointments.some((appointment) =>
-					and(
-						appointment.doctorId.eq(doctorId),
-						appointment.clinicId.eq(clinicId),
-					),
-				),
-			)
-		: patientCountQuery;
+	const filters = {
+		clinicId,
+		...(status ? { status } : {}),
+		...(doctorId
+			? { appointments: { some: { doctorId, clinicId } } }
+			: {}),
+	};
 	const [patients, patientCount] = await Promise.all([
-		scopedPatientQuery
-			.orderBy((patient) => patient.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		scopedPatientCountQuery.aggregate((aggregate) => ({
-			total: aggregate.count(),
-		})),
+		db.patient.findMany({
+			where: filters,
+			select: patientSelect,
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.patient.count({ where: filters }),
 	]);
 
 	return {
-		patients,
+		patients: patients.map(patientWithDateOnly),
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: patientCount.total,
-			totalPages: Math.ceil(patientCount.total / pagination.limit),
+			total: patientCount,
+			totalPages: Math.ceil(patientCount / pagination.limit),
 		},
 	};
 }
 
 export async function findDoctorIdByUserId(userId: string, clinicId: ClinicId) {
-	const doctor = await db.orm.public.Doctor.select("id").first({
-		userId: userId as UserId,
-		clinicId,
+	const doctor = await db.doctor.findFirst({
+		where: { userId: userId as UserId, clinicId },
+		select: { id: true },
 	});
 	return doctor?.id;
 }
 
 export function findAllPatientsByClinicId(clinicId: ClinicId) {
-	return db.orm.public.Patient.select(...patientFields)
-		.where({ clinicId })
-		.orderBy((patient) => patient.createdAt.desc())
-		.all();
+	return db.patient
+		.findMany({
+			where: { clinicId },
+			select: patientSelect,
+			orderBy: { createdAt: "desc" },
+		})
+		.then((patients) => patients.map(patientWithDateOnly));
 }
 
 export function findPatientById(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.select(...patientFields)
-		.include("appointments")
-		.include("medicalRecords", (record) =>
-			record.include("doctor", (doctor) =>
-				doctor
-					.select("id", "specialty")
-					.include("user", (user) =>
-						user.select("firstName", "lastName"),
-					),
-			),
-		)
-		.include("prescriptions", (record) =>
-			record.include("doctor", (doctor) =>
-				doctor
-					.select("id", "specialty")
-					.include("user", (user) =>
-						user.select("firstName", "lastName"),
-					),
-			),
-		)
-		.include("files")
-		.first({
-			id: patientId as PatientId,
-			clinicId,
-		});
+	return db.patient
+		.findFirst({
+			where: { id: patientId as PatientId, clinicId },
+			select: {
+				...patientSelect,
+				appointments: true,
+				medicalRecords: {
+					include: {
+						doctor: {
+							select: {
+								id: true,
+								specialty: true,
+								user: {
+									select: {
+										firstName: true,
+										lastName: true,
+									},
+								},
+							},
+						},
+					},
+				},
+				prescriptions: {
+					include: {
+						doctor: {
+							select: {
+								id: true,
+								specialty: true,
+								user: {
+									select: {
+										firstName: true,
+										lastName: true,
+									},
+								},
+							},
+						},
+					},
+				},
+				files: true,
+			},
+		})
+		.then((patient) => (patient ? patientWithDateOnly(patient) : null));
 }
 
 export function findMedicalRecordsForPatient(
 	clinicId: ClinicId,
 	patientId: string,
 ) {
-	return db.orm.public.MedicalRecord.select(
-		"id",
-		"diagnosis",
-		"symptoms",
-		"examination",
-		"treatment",
-		"notes",
-		"createdAt",
-	)
-		.where({ clinicId, patientId: patientId as PatientId })
-		.include("doctor", (doctor) =>
-			doctor
-				.select("id", "specialty")
-				.include("user", (user) =>
-					user.select("firstName", "lastName"),
-				),
-		)
-		.orderBy((record) => record.createdAt.desc())
-		.all();
+	return db.medicalRecord.findMany({
+		where: { clinicId, patientId: patientId as PatientId },
+		select: {
+			id: true,
+			diagnosis: true,
+			symptoms: true,
+			examination: true,
+			treatment: true,
+			notes: true,
+			createdAt: true,
+			doctor: {
+				select: {
+					id: true,
+					specialty: true,
+					user: {
+						select: { firstName: true, lastName: true },
+					},
+				},
+			},
+		},
+		orderBy: { createdAt: "desc" },
+	});
 }
 
 export function findPrescriptionsForPatient(patientId: string) {
-	return db.orm.public.Prescription.select(
-		"id",
-		"medications",
-		"notes",
-		"createdAt",
-	)
-		.where({ patientId: patientId as PatientId })
-		.include("doctor", (doctor) =>
-			doctor
-				.select("id", "specialty")
-				.include("user", (user) =>
-					user.select("firstName", "lastName"),
-				),
-		)
-		.orderBy((prescription) => prescription.createdAt.desc())
-		.all();
+	return db.prescription.findMany({
+		where: { patientId: patientId as PatientId },
+		select: {
+			id: true,
+			medications: true,
+			notes: true,
+			createdAt: true,
+			doctor: {
+				select: {
+					id: true,
+					specialty: true,
+					user: {
+						select: { firstName: true, lastName: true },
+					},
+				},
+			},
+		},
+		orderBy: { createdAt: "desc" },
+	});
 }
 
 export function findPatientByEmail(email: string) {
-	return db.orm.public.Patient.select("id").first({ email });
+	return db.patient.findFirst({ where: { email }, select: { id: true } });
 }
 
 export function createPatient(input: CreatePatientDto, clinicId: ClinicId) {
-	return db.orm.public.Patient.select(...patientFields).create({
-		firstName: input.firstName,
-		lastName: input.lastName,
-		dateOfBirth: input.dateOfBirth,
-		gender: input.gender,
-		bloodType: input.bloodType,
-		phone: input.phone,
-		email: input.email ?? null,
-		address: input.address,
-		emergencyContact: input.emergencyContact ?? "",
-		status: Patient_Status.UPCOMING,
-		allergies: input.allergies ?? "",
-		clinicId,
-	});
+	return db.patient
+		.create({
+			data: {
+				firstName: input.firstName,
+				lastName: input.lastName,
+				dateOfBirth: new Date(input.dateOfBirth),
+				gender: input.gender,
+				bloodType: input.bloodType,
+				phone: input.phone,
+				email: input.email ?? null,
+				address: input.address,
+				emergencyContact: input.emergencyContact ?? "",
+				status: Patient_Status.NEW,
+				allergies: input.allergies ?? "",
+				clinicId,
+			},
+			select: patientSelect,
+		})
+		.then(patientWithDateOnly);
 }
 
 export function updatePatientById(
@@ -212,15 +229,24 @@ export function updatePatientById(
 	patientId: string,
 	input: UpdatePatientDto,
 ) {
-	return db.orm.public.Patient.select(...patientFields).update(
-		{ id: patientId as PatientId, clinicId },
-		input,
-	);
+	const updateData = {
+		...input,
+		...(input.dateOfBirth !== undefined && {
+			dateOfBirth: new Date(input.dateOfBirth),
+		}),
+	};
+
+	return db.patient
+		.update({
+			where: { id: patientId as PatientId, clinicId },
+			data: updateData,
+			select: patientSelect,
+		})
+		.then(patientWithDateOnly);
 }
 
 export function deletePatientById(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.where({
-		id: patientId as PatientId,
-		clinicId,
-	}).delete();
+	return db.patient.delete({
+		where: { id: patientId as PatientId, clinicId },
+	});
 }

@@ -1,12 +1,15 @@
 import {
 	IsDateString,
 	IsIn,
-	IsNotEmpty,
+	IsOptional,
 	IsString,
 	IsUUID,
 	Matches,
 } from "class-validator";
-import { appointment_Status } from "../../../prisma/enums.ts";
+import {
+	Appointment_Source,
+	appointment_Status,
+} from "../../../prisma/enums.ts";
 
 export class CreateAppointmentDto {
 	@IsUUID()
@@ -15,30 +18,35 @@ export class CreateAppointmentDto {
 	@IsUUID()
 	patientId!: string;
 
+	@IsOptional()
+	@IsUUID()
+	visitTypeId?: string;
+
 	@IsDateString()
 	@Matches(/^\d{4}-\d{2}-\d{2}$/)
 	appointmentDate!: string;
 
-	@Matches(
-		/^(?:[01]\d|2[0-3]):[0-5]\d$|^(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM)$/i,
-	)
+	@Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
 	startTime!: string;
 
-	@Matches(
-		/^(?:[01]\d|2[0-3]):[0-5]\d$|^(?:0?[1-9]|1[0-2]):[0-5]\d\s*(?:AM|PM)$/i,
-	)
+	@Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
 	endTime!: string;
 
-	@IsNotEmpty()
+	@IsOptional()
 	@IsString()
 	@IsIn(Object.values(appointment_Status))
-	status!: string;
+	status?: string;
 
-	@IsNotEmpty()
+	@IsOptional()
 	@IsString()
-	reason!: string;
+	@IsIn(Object.values(Appointment_Source))
+	source?: string;
 
-	@IsNotEmpty()
+	@IsOptional()
 	@IsString()
-	notes!: string;
+	reason?: string;
+
+	@IsOptional()
+	@IsString()
+	notes?: string;
 }

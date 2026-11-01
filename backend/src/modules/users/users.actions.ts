@@ -1,109 +1,85 @@
 import { db } from "../../prisma/db.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 
 export { db };
 
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+type UserId = string;
+
+const userFields = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	email: true,
+	phone: true,
+	role: true,
+	avatar: true,
+	status: true,
+	lastLoginAt: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
 export async function listUsers(limit = 10) {
-	return db.orm.public.User.select(
-		"id",
-		"firstName",
-		"lastName",
-		"email",
-		"phone",
-		"role",
-		"avatar",
-		"status",
-		"lastLoginAt",
-		"createdAt",
-		"updatedAt",
-	)
-		.limit(limit)
-		.all();
+	return db.user.findMany({ take: limit, select: userFields });
 }
 
 export async function findUserById(userId: string) {
-	return db.orm.public.User.select(
-		"id",
-		"firstName",
-		"lastName",
-		"email",
-		"phone",
-		"role",
-		"avatar",
-		"status",
-		"lastLoginAt",
-		"createdAt",
-		"updatedAt",
-	).first({ id: userId });
+	return db.user.findUnique({ where: { id: userId }, select: userFields });
 }
 
 export async function listUsersForClinic(clinicId: ClinicId) {
 	const [clinic, doctors] = await Promise.all([
-		db.orm.public.Clinic.select("ownerId").first({ id: clinicId }),
-		db.orm.public.Doctor.select("userId").where({ clinicId }).all(),
+		db.clinic.findUnique({
+			where: { id: clinicId },
+			select: { ownerId: true },
+		}),
+		db.doctor.findMany({
+			where: { clinicId },
+			select: { userId: true },
+		}),
 	]);
 	if (!clinic) return [];
 
-	const userIds = [clinic.ownerId, ...doctors.map((doctor) => doctor.userId)];
-	return db.orm.public.User.select(
-		"id",
-		"firstName",
-		"lastName",
-		"email",
-		"phone",
-		"role",
-		"avatar",
-		"status",
-		"lastLoginAt",
-		"createdAt",
-		"updatedAt",
-	)
-		.where({ id: { in: userIds } })
-		.all();
+	const userIds = [
+		clinic.ownerId,
+		...doctors.map((doctor) => doctor.userId),
+	];
+	return db.user.findMany({
+		where: { id: { in: userIds } },
+		select: userFields,
+	});
 }
 
 export async function findUserForClinic(userId: string, clinicId: ClinicId) {
-	const doctorProfile = await db.orm.public.Doctor.select("id").first({
-		userId: userId as UserId,
-		clinicId,
+	const doctorProfile = await db.doctor.findFirst({
+		where: { userId: userId as UserId, clinicId },
+		select: { id: true },
 	});
 	if (doctorProfile) return findUserById(userId);
 
-	const clinicOwner = await db.orm.public.Clinic.select("id").first({
-		id: clinicId,
-		ownerId: userId as UserId,
+	const clinicOwner = await db.clinic.findFirst({
+		where: { id: clinicId, ownerId: userId as UserId },
+		select: { id: true },
 	});
 	return clinicOwner ? findUserById(userId) : null;
 }
 
 export async function findUserByEmail(email: string) {
-	return db.orm.public.User.select(
-		"id",
-		"firstName",
-		"lastName",
-		"email",
-		"phone",
-		"role",
-		"avatar",
-		"status",
-		"lastLoginAt",
-		"createdAt",
-		"updatedAt",
-	).first({ email });
+	return db.user.findUnique({ where: { email }, select: userFields });
 }
 
 export async function findUserForAuthentication(email: string) {
-	return db.orm.public.User.select(
-		"id",
-		"firstName",
-		"lastName",
-		"email",
-		"role",
-		"password",
-	).first({ email });
+	return db.user.findUnique({
+		where: { email },
+		select: {
+			id: true,
+			firstName: true,
+			lastName: true,
+			email: true,
+			role: true,
+			password: true,
+		},
+	});
 }
 
 // export type User = Awaited<ReturnType<typeof createUser>>;

@@ -1,17 +1,18 @@
-import { db } from "../../prisma/db.ts";
+import { randomUUID } from "node:crypto";
+import { db, type PrismaTransaction } from "../../prisma/db.ts";
 import { bill_Status } from "../../prisma/enums.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateBillDto } from "./DTOs/createBill.dto.ts";
 import type { UpdateBillDto } from "./DTOs/updateBill.dto.ts";
 
-type OrmContext = Pick<typeof db, "orm">;
+type OrmContext = Pick<PrismaTransaction, "bill">;
 
 const billFields = [
 	"id",
 	"clinicId",
 	"patientId",
 	"appointmentId",
+	"invoiceNumber",
 	"amount",
 	"description",
 	"status",
@@ -21,10 +22,43 @@ const billFields = [
 	"updatedAt",
 ] as const;
 
-type BillId = FieldOutputTypes["public"]["Bill"]["id"];
-export type PatientId = FieldOutputTypes["public"]["Patient"]["id"];
-type AppointmentId = FieldOutputTypes["public"]["Appointment"]["id"];
-export type BillStatus = FieldOutputTypes["public"]["Bill"]["status"];
+const billSelect = {
+	id: true,
+	clinicId: true,
+	patientId: true,
+	appointmentId: true,
+	invoiceNumber: true,
+	amount: true,
+	description: true,
+	status: true,
+	dueDate: true,
+	notes: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
+
+type BillId = string;
+export type PatientId = string;
+type AppointmentId = string;
+export type BillStatus = string;
+
+function billWithAppointmentDateOnly<
+	T extends {
+		appointment: { appointmentDate: Date } | null;
+	},
+>(bill: T) {
+	return {
+		...bill,
+		appointment: bill.appointment
+			? {
+					...bill.appointment,
+					appointmentDate: bill.appointment.appointmentDate
+						.toISOString()
+						.slice(0, 10),
+				}
+			: null,
+	};
+}
 
 function normalizePagination(page: number, limit: number) {
 	const normalizedPage = Number.isFinite(page)
@@ -41,17 +75,6 @@ function normalizePagination(page: number, limit: number) {
 	};
 }
 
-function billQuery(clinicId: ClinicId) {
-	return db.orm.public.Bill.select(...billFields)
-		.where({ clinicId })
-		.include("patient", (patient) =>
-			patient.select("id", "firstName", "lastName", "phone", "email"),
-		)
-		.include("appointment", (appointment) =>
-			appointment.select("id", "appointmentDate", "status"),
-		);
-}
-
 export async function findBillsByClinicId(
 	clinicId: ClinicId,
 	page = 1,
@@ -66,42 +89,80 @@ export async function findBillsByClinicId(
 		...(patientId && { patientId }),
 	};
 	const [bills, count] = await Promise.all([
-		db.orm.public.Bill.select(...billFields)
-			.where(filters)
-			.include("patient", (patient) =>
-				patient.select("id", "firstName", "lastName", "phone", "email"),
-			)
-			.include("appointment", (appointment) =>
-				appointment.select("id", "appointmentDate", "status"),
-			)
-			.orderBy((bill) => bill.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		db.orm.public.Bill.where(filters).aggregate((aggregate) => ({
-			total: aggregate.count(),
-		})),
+		db.bill.findMany({
+			where: filters,
+			select: {
+				...billSelect,
+				patient: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						phone: true,
+						email: true,
+					},
+				},
+				appointment: {
+					select: {
+						id: true,
+						appointmentDate: true,
+						startAt: true,
+						endAt: true,
+						status: true,
+					},
+				},
+			},
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.bill.count({ where: filters }),
 	]);
 
 	return {
-		bills,
+		bills: bills.map(billWithAppointmentDateOnly),
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: count.total,
-			totalPages: Math.ceil(count.total / pagination.limit),
+			total: count,
+			totalPages: Math.ceil(count / pagination.limit),
 		},
 	};
 }
 
 export function findBillById(clinicId: ClinicId, billId: string) {
-	return billQuery(clinicId).first({ id: billId as BillId });
+	return db.bill
+		.findFirst({
+			where: { id: billId as BillId, clinicId },
+			select: {
+				...billSelect,
+				patient: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						phone: true,
+						email: true,
+					},
+				},
+				appointment: {
+					select: {
+						id: true,
+						appointmentDate: true,
+						startAt: true,
+						endAt: true,
+						status: true,
+					},
+				},
+			},
+		})
+		.then((bill) => (bill ? billWithAppointmentDateOnly(bill) : null));
 }
 
 export function findPatientForBill(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.select("id").first({
-		id: patientId as PatientId,
-		clinicId,
+	return db.patient.findFirst({
+		where: { id: patientId as PatientId, clinicId },
+		select: { id: true },
 	});
 }
 
@@ -109,23 +170,34 @@ export function findAppointmentForBill(
 	clinicId: ClinicId,
 	appointmentId: string,
 ) {
-	return db.orm.public.Appointment.select("id", "patientId").first({
-		id: appointmentId as AppointmentId,
-		clinicId,
+	return db.appointment.findFirst({
+		where: { id: appointmentId as AppointmentId, clinicId },
+		select: { id: true, patientId: true },
 	});
 }
 
-export function createBill(input: CreateBillDto, clinicId: ClinicId) {
-	return db.orm.public.Bill.select(...billFields).create({
-		clinicId,
-		patientId: input.patientId as PatientId,
-		...(input.appointmentId && {
-			appointmentId: input.appointmentId as AppointmentId,
-		}),
-		amount: String(input.amount),
-		description: input.description,
-		...(input.dueDate && { dueDate: input.dueDate }),
-		...(input.notes !== undefined && { notes: input.notes }),
+export function createBill(
+	input: CreateBillDto,
+	clinicId: ClinicId,
+	createdBy: string,
+) {
+	return db.bill.create({
+		data: {
+			clinicId,
+			patientId: input.patientId as PatientId,
+			...(input.appointmentId && {
+				appointmentId: input.appointmentId as AppointmentId,
+			}),
+			invoiceNumber: `INV-${randomUUID()}`,
+			amount: String(input.amount),
+			description: input.description,
+			...(input.dueDate && {
+				dueDate: new Date(`${input.dueDate}T00:00:00.000Z`),
+			}),
+			...(input.notes !== undefined && { notes: input.notes }),
+			createdBy,
+		},
+		select: billSelect,
 	});
 }
 
@@ -134,15 +206,21 @@ export function createBillForAppointment(
 	patientId: string,
 	appointmentId: string,
 	amount: string,
+	createdBy: string,
 	client: OrmContext = db,
 ) {
-	return client.orm.public.Bill.select(...billFields).create({
-		clinicId,
-		patientId: patientId as PatientId,
-		appointmentId: appointmentId as AppointmentId,
-		amount,
-		description: "Appointment consultation fee",
-		status: bill_Status.UNPAID,
+	return client.bill.create({
+		data: {
+			clinicId,
+			patientId: patientId as PatientId,
+			appointmentId: appointmentId as AppointmentId,
+			invoiceNumber: `INV-${randomUUID()}`,
+			amount,
+			description: "Appointment consultation fee",
+			status: bill_Status.UNPAID,
+			createdBy,
+		},
+		select: billSelect,
 	});
 }
 
@@ -151,12 +229,9 @@ export function updateBillById(
 	billId: string,
 	input: UpdateBillDto,
 ) {
-	return db.orm.public.Bill.where({
-		id: billId as BillId,
-		clinicId,
-	})
-		.select(...billFields)
-		.update({
+	return db.bill.update({
+		where: { id: billId as BillId, clinicId },
+		data: {
 			...(input.patientId !== undefined && {
 				patientId: input.patientId as PatientId,
 			}),
@@ -172,14 +247,17 @@ export function updateBillById(
 			...(input.status !== undefined && {
 				status: input.status as BillStatus,
 			}),
-			...(input.dueDate !== undefined && { dueDate: input.dueDate }),
+			...(input.dueDate !== undefined && {
+				dueDate: input.dueDate
+					? new Date(`${input.dueDate}T00:00:00.000Z`)
+					: null,
+			}),
 			...(input.notes !== undefined && { notes: input.notes }),
-		});
+		},
+		select: billSelect,
+	});
 }
 
 export function deleteBillById(clinicId: ClinicId, billId: string) {
-	return db.orm.public.Bill.where({
-		id: billId as BillId,
-		clinicId,
-	}).delete();
+	return db.bill.delete({ where: { id: billId as BillId, clinicId } });
 }

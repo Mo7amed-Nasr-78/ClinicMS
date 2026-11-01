@@ -50,8 +50,8 @@ export type TodayAppointmentReportItem = {
 	doctorId: string;
 	patientId: string;
 	appointmentDate: string;
-	startTime: string;
-	endTime: string;
+	startAt: string;
+	endAt: string;
 	status: string;
 	reason: string;
 	notes: string;

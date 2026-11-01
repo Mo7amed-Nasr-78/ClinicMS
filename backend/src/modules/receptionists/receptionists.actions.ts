@@ -1,15 +1,13 @@
 import bcrypt from "bcryptjs";
 
 import { db } from "../../prisma/db.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import { Roles, Status } from "../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateReceptionistDto } from "./DTOs/createReceptionist.dto.ts";
 import type { UpdateReceptionistDto } from "./DTOs/updateReceptionist.dto.ts";
 
-type ReceptionistId =
-	FieldOutputTypes["public"]["Receptionist"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+type ReceptionistId = string;
+type UserId = string;
 
 const receptionistFields = [
 	"id",
@@ -21,51 +19,65 @@ const receptionistFields = [
 ] as const;
 
 export function findAllReceptionists(clinicId: ClinicId) {
-	return db.orm.public.Receptionist.select(...receptionistFields)
-		.where({ clinicId })
-		.include("user", (user) =>
-			user.select(
-				"id",
-				"firstName",
-				"lastName",
-				"email",
-				"phone",
-				"avatar",
-				"status",
-				"createdAt",
-				"updatedAt",
-			),
-		)
-		.orderBy((receptionist) => receptionist.createdAt.desc())
-		.all();
+	return db.receptionist.findMany({
+		where: { clinicId },
+		select: {
+			id: true,
+			status: true,
+			userId: true,
+			clinicId: true,
+			createdAt: true,
+			updatedAt: true,
+			user: {
+				select: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					phone: true,
+					avatar: true,
+					status: true,
+					createdAt: true,
+					updatedAt: true,
+				},
+			},
+		},
+		orderBy: { createdAt: "desc" },
+	});
 }
 
 export function findReceptionistById(
 	clinicId: ClinicId,
 	receptionistId: string,
 ) {
-	return db.orm.public.Receptionist.select(...receptionistFields)
-		.include("user", (user) =>
-			user.select(
-				"id",
-				"firstName",
-				"lastName",
-				"email",
-				"phone",
-				"avatar",
-				"status",
-				"createdAt",
-				"updatedAt",
-			),
-		)
-		.first({
-			id: receptionistId as ReceptionistId,
-			clinicId,
-		});
+	return db.receptionist.findFirst({
+		where: { id: receptionistId as ReceptionistId, clinicId },
+		select: {
+			id: true,
+			status: true,
+			userId: true,
+			clinicId: true,
+			createdAt: true,
+			updatedAt: true,
+			user: {
+				select: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					phone: true,
+					avatar: true,
+					status: true,
+					createdAt: true,
+					updatedAt: true,
+				},
+			},
+		},
+	});
 }
 
 export function findReceptionistUserByEmail(email: string) {
-	return db.orm.public.User.select("id").first({ email });
+	return db.user.findUnique({ where: { email }, select: { id: true } });
 }
 
 export async function createReceptionist(
@@ -74,25 +86,28 @@ export async function createReceptionist(
 ) {
 	const password = await bcrypt.hash(input.password, 12);
 
-	const receptionist = await db.transaction(async (transaction) => {
-		const user = await transaction.orm.public.User.select("id").create({
-			firstName: input.firstName ?? null,
-			lastName: input.lastName ?? null,
-			email: input.email,
-			password,
-			phone: input.phone ?? null,
-			role: Roles.RECEPTIONIST,
-			status: Status.ACTIVE,
+	const receptionist = await db.$transaction(async (transaction) => {
+		const user = await transaction.user.create({
+			data: {
+				firstName: input.firstName ?? null,
+				lastName: input.lastName ?? null,
+				email: input.email,
+				password,
+				phone: input.phone ?? null,
+				role: Roles.RECEPTIONIST,
+				status: Status.ACTIVE,
+			},
+			select: { id: true },
 		});
 
-		return transaction.orm.public.Receptionist.select(
-			...receptionistFields,
-		)
-			.create({
+		return transaction.receptionist.create({
+			data: {
 				userId: user.id,
 				clinicId,
 				status: Status.ACTIVE,
-			});
+			},
+			select: { id: true },
+		});
 	});
 
 	return findReceptionistById(clinicId, receptionist.id);
@@ -104,7 +119,7 @@ export async function updateReceptionist(
 	userId: string,
 	input: UpdateReceptionistDto,
 ) {
-	await db.transaction(async (transaction) => {
+	await db.$transaction(async (transaction) => {
 		const userUpdate = {
 			...(input.firstName !== undefined && {
 				firstName: input.firstName,
@@ -116,16 +131,20 @@ export async function updateReceptionist(
 			...(input.status !== undefined && { status: input.status }),
 		};
 		if (Object.keys(userUpdate).length > 0) {
-			await transaction.orm.public.User.where({
-				id: userId as UserId,
-			}).update(userUpdate);
+			await transaction.user.update({
+				where: { id: userId as UserId },
+				data: userUpdate,
+			});
 		}
 
 		if (input.status !== undefined) {
-			await transaction.orm.public.Receptionist.where({
-				id: receptionistId as ReceptionistId,
-				clinicId,
-			}).update({ status: input.status });
+			await transaction.receptionist.update({
+				where: {
+					id: receptionistId as ReceptionistId,
+					clinicId,
+				},
+				data: { status: input.status },
+			});
 		}
 	});
 
@@ -137,15 +156,16 @@ export async function deactivateReceptionist(
 	receptionistId: string,
 	userId: string,
 ) {
-	await db.transaction(async (transaction) => {
-		await transaction.orm.public.User.where({
-			id: userId as UserId,
-		}).update({ status: Status.INACTIVE });
+	await db.$transaction(async (transaction) => {
+		await transaction.user.update({
+			where: { id: userId as UserId },
+			data: { status: Status.INACTIVE },
+		});
 
-		await transaction.orm.public.Receptionist.where({
-			id: receptionistId as ReceptionistId,
-			clinicId,
-		}).update({ status: Status.INACTIVE });
+		await transaction.receptionist.update({
+			where: { id: receptionistId as ReceptionistId, clinicId },
+			data: { status: Status.INACTIVE },
+		});
 	});
 
 	return findReceptionistById(clinicId, receptionistId);

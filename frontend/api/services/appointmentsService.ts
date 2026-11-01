@@ -3,6 +3,7 @@ import { httpClient } from "@/api/httpClient";
 export type CreateAppointmentPayload = {
 	doctorId: string;
 	patientId: string;
+	visitTypeId: string;
 	appointmentDate: string;
 	startTime: string;
 	endTime: string;
@@ -13,12 +14,13 @@ export type CreateAppointmentPayload = {
 
 export type UpdateAppointmentPayload = Partial<CreateAppointmentPayload>;
 
-export type Appointment = CreateAppointmentPayload & {
+export type Appointment = Omit<CreateAppointmentPayload, "visitTypeId"> & {
 	id: string;
 	clinicId: string;
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
+	visitTypeId: string | null;
 };
 
 export type AppointmentWithRelations = Appointment & {

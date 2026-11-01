@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Temporal } from "temporal-polyfill";
 
 import { findClinicIdForUser } from "../clinics/clinics.actions";
 import type { ClinicId } from "../clinics/clinics.actions";
@@ -8,8 +9,8 @@ import { Role } from "../../authorization/enums/role.enum.ts";
 import {
 	findAppointmentsForDate,
 	findDoctorIdByUserId,
+	findClinicTimezone,
 } from "../appointments/appointments.actions";
-import { getUtcDayBounds } from "../doctors/availability.ts";
 
 type DoctorFilters = {
 	status?: string;
@@ -31,12 +32,14 @@ export class ReportsService {
 			throw new NotFoundException("Clinic not found");
 		}
 
-		const today = getUtcDayBounds(
-			new Date().toISOString().slice(0, 10),
-		);
-		if (!today) {
-			throw new NotFoundException("Today's date is unavailable");
+		const clinicSettings = await findClinicTimezone(clinic.id);
+		if (!clinicSettings?.timezone) {
+			throw new NotFoundException("Clinic timezone is unavailable");
 		}
+		const today = Temporal.Instant.fromEpochMilliseconds(Date.now())
+			.toZonedDateTimeISO(clinicSettings.timezone)
+			.toPlainDate()
+			.toString();
 
 		let doctorId: string | undefined;
 		if (role === Role.DOCTOR) {
@@ -49,8 +52,7 @@ export class ReportsService {
 
 		return findAppointmentsForDate(
 			clinic.id as ClinicId,
-			today.start,
-			today.end,
+			today,
 			doctorId,
 		);
 	}

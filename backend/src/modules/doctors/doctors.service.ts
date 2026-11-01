@@ -73,12 +73,7 @@ export class DoctorsService {
 		}
 		const [schedules, appointments] = await Promise.all([
 			listDoctorSchedules(clinicId, doctor.id),
-			findDoctorAppointmentsForDate(
-				clinicId,
-				doctor.id,
-				bounds.start,
-				bounds.end,
-			),
+			findDoctorAppointmentsForDate(clinicId, doctor.id, date),
 		]);
 
 		return {

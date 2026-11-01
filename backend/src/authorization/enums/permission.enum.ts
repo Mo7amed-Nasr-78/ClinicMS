@@ -44,4 +44,12 @@ export enum Permission {
 	VIEW_BILL_DETAILS = "view:bills:detail",
 	UPDATE_BILLS = "update:bills",
 	DELETE_BILLS = "delete:bills",
+	CREATE_VISIT_TYPES = "create:visit-types",
+	VIEW_VISIT_TYPES = "view:visit-types",
+	VIEW_VISIT_TYPE_DETAILS = "view:visit-types:detail",
+	UPDATE_VISIT_TYPES = "update:visit-types",
+	DELETE_VISIT_TYPES = "delete:visit-types",
+	DOCTORS_REPORT = "doctors:report",
+	APPOINTMENTS_REPORT = "appointments:report",
+	PATIENTS_REPORT = "patients:report",
 }

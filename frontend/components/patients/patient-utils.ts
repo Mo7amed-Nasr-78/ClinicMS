@@ -32,6 +32,7 @@ export const defaultPatientForm: PatientForm = {
 
 export const defaultPatientAppointmentForm: PatientAppointmentForm = {
 	doctorId: "",
+	visitTypeId: "",
 	appointmentDate: "",
 	startTime: "",
 	endTime: "",

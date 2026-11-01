@@ -17,6 +17,7 @@ export type AppointmentForm = Omit<
 export const emptyForm: AppointmentForm = {
 	doctorId: "",
 	patientId: "",
+	visitTypeId: "",
 	appointmentDate: "",
 	startTime: "",
 	endTime: "",

@@ -1,26 +1,25 @@
-import { and } from "@prisma/orm-postgres/orm-client";
 import { db } from "../../prisma/db.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreatePrescriptionDto } from "./DTOs/createPrescription.dto.ts";
 import type { UpdatePrescriptionDto } from "./DTOs/updatePrescription.dto.ts";
 
-const prescriptionFields = [
-	"id",
-	"patientId",
-	"doctorId",
-	"appointmentId",
-	"medications",
-	"notes",
-	"createdAt",
-	"updatedAt",
-] as const;
+const prescriptionSelect = {
+	id: true,
+	clinicId: true,
+	patientId: true,
+	doctorId: true,
+	appointmentId: true,
+	medications: true,
+	notes: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
-type PrescriptionId = FieldOutputTypes["public"]["Prescription"]["id"];
-type PatientId = FieldOutputTypes["public"]["Patient"]["id"];
-type DoctorId = FieldOutputTypes["public"]["Doctor"]["id"];
-type AppointmentId = FieldOutputTypes["public"]["Appointment"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+type PrescriptionId = string;
+type PatientId = string;
+type DoctorId = string;
+type AppointmentId = string;
+type UserId = string;
 
 function normalizePagination(page: number, limit: number) {
 	const normalizedPage = Number.isFinite(page)
@@ -42,48 +41,11 @@ function prescriptionClinicFilter(
 	doctorId?: string,
 	patientId?: string,
 ) {
-	return (
-		prescription: Parameters<
-			Parameters<typeof db.orm.public.Prescription.where>[0]
-		>[0],
-	) => {
-		const patientClinic = prescription.patient.clinicId.eq(clinicId);
-		if (doctorId && patientId) {
-			return and(
-				patientClinic,
-				prescription.doctorId.eq(doctorId as DoctorId),
-				prescription.patientId.eq(patientId as PatientId),
-			);
-		}
-		if (doctorId) {
-			return and(
-				patientClinic,
-				prescription.doctorId.eq(doctorId as DoctorId),
-			);
-		}
-		if (patientId) {
-			return and(
-				patientClinic,
-				prescription.patientId.eq(patientId as PatientId),
-			);
-		}
-		return patientClinic;
+	return {
+		clinicId,
+		...(doctorId && { doctorId: doctorId as DoctorId }),
+		...(patientId && { patientId: patientId as PatientId }),
 	};
-}
-
-function prescriptionQuery(clinicId: ClinicId, doctorId?: string) {
-	return db.orm.public.Prescription.select(...prescriptionFields)
-		.where(prescriptionClinicFilter(clinicId, doctorId))
-		.include("patient", (patient) =>
-			patient.select("id", "firstName", "lastName"),
-		)
-		.include("doctor", (doctor) =>
-			doctor
-				.select("id", "specialty")
-				.include("user", (user) =>
-					user.select("firstName", "lastName"),
-				),
-		);
 }
 
 export async function findPrescriptionsByClinicId(
@@ -95,26 +57,36 @@ export async function findPrescriptionsByClinicId(
 ) {
 	const pagination = normalizePagination(page, limit);
 	const filter = prescriptionClinicFilter(clinicId, doctorId, patientId);
-	const [prescriptions, totalResult] = await Promise.all([
-		db.orm.public.Prescription.select(...prescriptionFields)
-			.where(filter)
-			.include("patient", (patient) =>
-				patient.select("id", "firstName", "lastName"),
-			)
-			.include("doctor", (doctor) =>
-				doctor
-					.select("id", "specialty")
-					.include("user", (user) =>
-						user.select("firstName", "lastName"),
-					),
-			)
-			.orderBy((prescription) => prescription.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		db.orm.public.Prescription.where(filter).aggregate((aggregate) => ({
-			total: aggregate.count(),
-		})),
+	const [prescriptions, total] = await Promise.all([
+		db.prescription.findMany({
+			where: filter,
+			select: {
+				...prescriptionSelect,
+				patient: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+					},
+				},
+				doctor: {
+					select: {
+						id: true,
+						specialty: true,
+						user: {
+							select: {
+								firstName: true,
+								lastName: true,
+							},
+						},
+					},
+				},
+			},
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.prescription.count({ where: filter }),
 	]);
 
 	return {
@@ -122,8 +94,8 @@ export async function findPrescriptionsByClinicId(
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: totalResult.total,
-			totalPages: Math.ceil(totalResult.total / pagination.limit),
+			total,
+			totalPages: Math.ceil(total / pagination.limit),
 		},
 	};
 }
@@ -133,29 +105,45 @@ export function findPrescriptionById(
 	prescriptionId: string,
 	doctorId?: string,
 ) {
-	return prescriptionQuery(clinicId, doctorId).first({
-		id: prescriptionId as PrescriptionId,
+	const where = prescriptionClinicFilter(clinicId, doctorId);
+	return db.prescription.findFirst({
+		where: { ...where, id: prescriptionId as PrescriptionId },
+		select: {
+			...prescriptionSelect,
+			patient: {
+				select: { id: true, firstName: true, lastName: true },
+			},
+			doctor: {
+				select: {
+					id: true,
+					specialty: true,
+					user: {
+						select: { firstName: true, lastName: true },
+					},
+				},
+			},
+		},
 	});
 }
 
 export function findDoctorIdByUserId(userId: string, clinicId: ClinicId) {
-	return db.orm.public.Doctor.select("id").first({
-		userId: userId as UserId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { userId: userId as UserId, clinicId },
+		select: { id: true },
 	});
 }
 
 export function findPatientInClinic(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.select("id").first({
-		id: patientId as PatientId,
-		clinicId,
+	return db.patient.findFirst({
+		where: { id: patientId as PatientId, clinicId },
+		select: { id: true },
 	});
 }
 
 export function findDoctorInClinic(clinicId: ClinicId, doctorId: string) {
-	return db.orm.public.Doctor.select("id").first({
-		id: doctorId as DoctorId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { id: doctorId as DoctorId, clinicId },
+		select: { id: true },
 	});
 }
 
@@ -163,23 +151,26 @@ export function findAppointmentForPrescription(
 	clinicId: ClinicId,
 	appointmentId: string,
 ) {
-	return db.orm.public.Appointment.select(
-		"id",
-		"patientId",
-		"doctorId",
-	).first({
-		id: appointmentId as AppointmentId,
-		clinicId,
+	return db.appointment.findFirst({
+		where: { id: appointmentId as AppointmentId, clinicId },
+		select: { id: true, patientId: true, doctorId: true },
 	});
 }
 
-export function createPrescription(input: CreatePrescriptionDto) {
-	return db.orm.public.Prescription.select(...prescriptionFields).create({
-		patientId: input.patientId as PatientId,
-		doctorId: input.doctorId as DoctorId,
-		appointmentId: input.appointmentId as AppointmentId,
-		medications: input.medications,
-		notes: input.notes,
+export function createPrescription(
+	input: CreatePrescriptionDto,
+	clinicId: ClinicId,
+) {
+	return db.prescription.create({
+		data: {
+			clinicId,
+			patientId: input.patientId as PatientId,
+			doctorId: input.doctorId as DoctorId,
+			appointmentId: input.appointmentId as AppointmentId,
+			medications: input.medications,
+			notes: input.notes,
+		},
+		select: prescriptionSelect,
 	});
 }
 
@@ -189,12 +180,12 @@ export function updatePrescriptionById(
 	input: UpdatePrescriptionDto,
 	doctorId?: string,
 ) {
-	return db.orm.public.Prescription.where({
-		id: prescriptionId as PrescriptionId,
-	})
-		.where(prescriptionClinicFilter(clinicId, doctorId))
-		.select(...prescriptionFields)
-		.update({
+	return db.prescription.update({
+		where: {
+			id: prescriptionId as PrescriptionId,
+			...prescriptionClinicFilter(clinicId, doctorId),
+		},
+		data: {
 			...(input.patientId !== undefined && {
 				patientId: input.patientId as PatientId,
 			}),
@@ -208,7 +199,9 @@ export function updatePrescriptionById(
 				medications: input.medications,
 			}),
 			...(input.notes !== undefined && { notes: input.notes }),
-		});
+		},
+		select: prescriptionSelect,
+	});
 }
 
 export function deletePrescriptionById(
@@ -216,9 +209,10 @@ export function deletePrescriptionById(
 	prescriptionId: string,
 	doctorId?: string,
 ) {
-	return db.orm.public.Prescription.where({
-		id: prescriptionId as PrescriptionId,
-	})
-		.where(prescriptionClinicFilter(clinicId, doctorId))
-		.delete();
+	return db.prescription.delete({
+		where: {
+			id: prescriptionId as PrescriptionId,
+			...prescriptionClinicFilter(clinicId, doctorId),
+		},
+	});
 }

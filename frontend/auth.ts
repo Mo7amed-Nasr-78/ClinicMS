@@ -1,7 +1,10 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
-const authApiUrl = process.env.AUTH_API_URL ?? "http://localhost:3000";
+const authApiUrl =
+	process.env.AUTH_API_URL ??
+	process.env.NEXT_PUBLIC_API_URL ??
+	"http://localhost:3010";
 
 interface BackendAuthResponse {
 	accessToken: string;

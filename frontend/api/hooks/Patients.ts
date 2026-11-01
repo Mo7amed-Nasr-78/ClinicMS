@@ -25,8 +25,8 @@ export type PatientDetails = Patient & {
 		id: string;
 		doctorId: string;
 		appointmentDate: string;
-		startTime: string;
-		endTime: string;
+		startAt: string;
+		endAt: string;
 		status: string;
 		reason: string;
 		doctor?: PatientDetailDoctor;

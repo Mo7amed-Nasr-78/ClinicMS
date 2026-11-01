@@ -110,6 +110,7 @@ export default function AppointmentsPage() {
 		setForm({
 			doctorId: appointment.doctorId,
 			patientId: appointment.patientId,
+			visitTypeId: appointment.visitTypeId ?? "",
 			appointmentDate: toDateInput(appointment.appointmentDate),
 			startTime: toTimeInput(appointment.startTime),
 			endTime: toTimeInput(appointment.endTime),
@@ -134,6 +135,7 @@ export default function AppointmentsPage() {
 		if (
 			!form.doctorId ||
 			!form.patientId ||
+			!form.visitTypeId ||
 			!form.appointmentDate ||
 			!form.startTime ||
 			!form.endTime ||
@@ -163,6 +165,7 @@ export default function AppointmentsPage() {
 		const payload: CreateAppointmentPayload = {
 			doctorId: form.doctorId,
 			patientId: form.patientId,
+			visitTypeId: form.visitTypeId,
 			appointmentDate: form.appointmentDate,
 			startTime: form.startTime,
 			endTime: form.endTime,

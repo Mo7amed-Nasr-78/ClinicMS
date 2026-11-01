@@ -6,6 +6,7 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import { ClinicLogoStorageService } from "./clinic-logo-storage.service";
+import { Temporal } from "temporal-polyfill";
 import {
 	createClinic,
 	deleteClinic,
@@ -24,9 +25,21 @@ import { AuthorizationService } from "../../authorization/authorization.service.
 import {
 	findDoctorDashboardStats,
 	findDoctorIdByUserId,
+	findClinicTimezone,
 } from "../appointments/appointments.actions";
-import { getUtcDayBounds } from "../doctors/availability.ts";
 import { findUserById } from "../users/users.actions";
+
+function getClinicDateRange(date: Temporal.PlainDate, timeZone: string) {
+	const start = date.toZonedDateTime({
+		timeZone,
+		plainTime: Temporal.PlainTime.from("00:00"),
+	});
+	const end = date.add({ days: 1 }).toZonedDateTime({
+		timeZone,
+		plainTime: Temporal.PlainTime.from("00:00"),
+	});
+	return { start: start.toInstant(), end: end.toInstant() };
+}
 
 @Injectable()
 export class ClinicsService {
@@ -94,25 +107,26 @@ export class ClinicsService {
 			throw new NotFoundException("Doctor not found");
 		}
 
-		const now = new Date();
-		const today = getUtcDayBounds(now.toISOString().slice(0, 10));
-		const monthStart = getUtcDayBounds(
-			new Date(
-				Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-			)
-				.toISOString()
-				.slice(0, 10),
-		);
-		const nextMonthStart = getUtcDayBounds(
-			new Date(
-				Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
-			)
-				.toISOString()
-				.slice(0, 10),
-		);
-		if (!today || !monthStart || !nextMonthStart) {
-			throw new NotFoundException("Current date is unavailable");
+		const clinicSettings = await findClinicTimezone(clinic.id);
+		if (!clinicSettings?.timezone) {
+			throw new NotFoundException("Clinic timezone is unavailable");
 		}
+		const now = Temporal.Instant.fromEpochMilliseconds(Date.now());
+		const todayDate = now
+			.toZonedDateTimeISO(clinicSettings.timezone)
+			.toPlainDate();
+		const today = getClinicDateRange(
+			todayDate,
+			clinicSettings.timezone,
+		);
+		const monthStart = getClinicDateRange(
+			todayDate.with({ day: 1 }),
+			clinicSettings.timezone,
+		);
+		const nextMonthStart = getClinicDateRange(
+			todayDate.with({ day: 1 }).add({ months: 1 }),
+			clinicSettings.timezone,
+		);
 
 		return findDoctorDashboardStats(
 			clinic.id as ClinicId,
@@ -121,6 +135,7 @@ export class ClinicsService {
 			today.end,
 			monthStart.start,
 			nextMonthStart.start,
+			clinicSettings.timezone,
 		);
 	}
 

@@ -27,7 +27,7 @@ function validateScheduleValues(
 	endTime: string,
 	slotDuration: number,
 	effectiveFrom: string,
-	effectiveTo: string,
+	effectiveTo?: string,
 ) {
 	if (startTime >= endTime) {
 		throw new BadRequestException(
@@ -40,8 +40,14 @@ function validateScheduleValues(
 		);
 	}
 	const from = Date.parse(effectiveFrom);
-	const to = Date.parse(effectiveTo);
-	if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) {
+	const to = effectiveTo
+		? Date.parse(effectiveTo)
+		: Number.POSITIVE_INFINITY;
+	if (
+		!Number.isFinite(from) ||
+		(effectiveTo && !Number.isFinite(to)) ||
+		from > to
+	) {
 		throw new BadRequestException(
 			"Effective end date must not precede start date",
 		);
@@ -62,12 +68,12 @@ export class DoctorSchedulesService {
 			createDoctorScheduleDto.effectiveTo,
 		);
 		const clinic = await this.getClinicId(ownerId);
-		const doctor = await db.orm.public.Doctor.select(
-			"id",
-			"clinicId",
-		).first({
-			id: createDoctorScheduleDto.doctorId as DoctorId,
-			clinicId: clinic,
+		const doctor = await db.doctor.findFirst({
+			where: {
+				id: createDoctorScheduleDto.doctorId as DoctorId,
+				clinicId: clinic,
+			},
+			select: { id: true, clinicId: true },
 		});
 
 		if (!doctor) {
@@ -147,9 +153,9 @@ export class DoctorSchedulesService {
 			updateDoctorScheduleDto.slotDuration ??
 				existingSchedule.slotDuration,
 			updateDoctorScheduleDto.effectiveFrom ??
-				existingSchedule.effectiveFrom.toString(),
+				existingSchedule.effectiveFrom.toISOString(),
 			updateDoctorScheduleDto.effectiveTo ??
-				existingSchedule.effectiveTo.toString(),
+				existingSchedule.effectiveTo?.toISOString(),
 		);
 
 		return updateDoctorSchedule(id, updateDoctorScheduleDto);
@@ -174,9 +180,9 @@ export class DoctorSchedulesService {
 		clinicId: ClinicId,
 		doctorId: string,
 	) {
-		const doctor = await db.orm.public.Doctor.select("id").first({
-			id: doctorId as DoctorId,
-			clinicId,
+		const doctor = await db.doctor.findFirst({
+			where: { id: doctorId as DoctorId, clinicId },
+			select: { id: true },
 		});
 		if (!doctor) {
 			throw new NotFoundException("Doctor schedule not found");

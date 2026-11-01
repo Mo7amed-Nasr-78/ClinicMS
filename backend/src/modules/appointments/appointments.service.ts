@@ -7,6 +7,7 @@ import {
 import { Temporal } from "temporal-polyfill";
 
 import { db } from "../../prisma/db.ts";
+import type { PrismaTransaction } from "../../prisma/db.ts";
 import { appointment_Status } from "../../prisma/enums.ts";
 import { Role } from "../../authorization/enums/role.enum.ts";
 import { findClinicIdForUser } from "../clinics/clinics.actions";
@@ -16,7 +17,6 @@ import {
 	type DoctorId,
 } from "../doctor-schedules/doctor-schedules.actions.ts";
 import {
-	getUtcDayBounds,
 	isAppointmentBlocking,
 	isAppointmentSlotAvailable,
 	parseTimeMinutes,
@@ -29,13 +29,32 @@ import {
 	findDoctorAppointmentsForDate,
 	findDoctorIdByUserId,
 	findDoctorInClinic,
+	findDefaultVisitTypeInClinic,
 	findPatientInClinic,
+	findVisitTypeInClinic,
 	updateAppointmentById,
 } from "./appointments.actions";
 import type { AppointmentStatus, PatientId } from "./appointments.actions";
 import type { CreateAppointmentDto } from "./DTOs/createAppointment.dto";
 import type { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto";
 import { createBillForAppointment } from "../bills/bills.actions.ts";
+
+function getClinicDateRange(date: string) {
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return undefined;
+
+	let plainDate: Temporal.PlainDate;
+	try {
+		plainDate = Temporal.PlainDate.from(date);
+	} catch {
+		return undefined;
+	}
+	if (plainDate.toString() !== date) return undefined;
+
+	return {
+		start: plainDate.toString(),
+		end: plainDate.add({ days: 1 }).toString(),
+	};
+}
 
 @Injectable()
 export class AppointmentsService {
@@ -55,13 +74,14 @@ export class AppointmentsService {
 		) {
 			throw new NotFoundException("Patient not found");
 		}
-		const dayBounds = appointmentDate
-			? getUtcDayBounds(appointmentDate)
-			: undefined;
-		if (appointmentDate && !dayBounds) {
-			throw new BadRequestException(
-				"appointmentDate must be a valid YYYY-MM-DD date",
-			);
+		let appointmentDateRange: ReturnType<typeof getClinicDateRange>;
+		if (appointmentDate) {
+			appointmentDateRange = getClinicDateRange(appointmentDate);
+			if (!appointmentDateRange) {
+				throw new BadRequestException(
+					"appointmentDate must be a valid YYYY-MM-DD date",
+				);
+			}
 		}
 
 		if (
@@ -84,7 +104,7 @@ export class AppointmentsService {
 				page,
 				limit,
 				doctorId,
-				dayBounds?.start,
+				appointmentDateRange,
 				appointmentStatus,
 				patientId as PatientId | undefined,
 			);
@@ -95,7 +115,7 @@ export class AppointmentsService {
 			page,
 			limit,
 			undefined,
-			dayBounds?.start,
+			appointmentDateRange,
 			appointmentStatus,
 			patientId as PatientId | undefined,
 		);
@@ -121,25 +141,32 @@ export class AppointmentsService {
 			input.doctorId,
 			input.patientId,
 		);
+		const visitType = input.visitTypeId
+			? await findVisitTypeInClinic(clinicId, input.visitTypeId)
+			: await findDefaultVisitTypeInClinic(clinicId);
+		if (!visitType?.isActive) {
+			throw new NotFoundException(
+				"Visit type not found in this clinic",
+			);
+		}
 		const date = input.appointmentDate;
+		const dateRange = getClinicDateRange(date);
 		const startTime = input.startTime;
 		const endTime = input.endTime;
-		const startMinute = parseTimeMinutes(startTime);
-		const endMinute = parseTimeMinutes(endTime);
-		const bounds = getUtcDayBounds(date);
+		const startMinute = parseTimeMinutes(input.startTime);
+		const endMinute = parseTimeMinutes(input.endTime);
 
 		if (
-			!bounds ||
+			!dateRange ||
 			startMinute === undefined ||
 			endMinute === undefined ||
-			endMinute === startMinute
+			endMinute <= startMinute
 		) {
 			throw new ConflictException(
 				"Appointment time range is invalid",
 			);
 		}
-
-		return db.transaction(async (tx) => {
+		return db.$transaction(async (tx) => {
 			await this.lockDoctorSchedule(tx, input.doctorId);
 			const [schedules, appointments] = await Promise.all([
 				listDoctorSchedules(
@@ -150,8 +177,7 @@ export class AppointmentsService {
 				findDoctorAppointmentsForDate(
 					clinicId,
 					input.doctorId,
-					bounds.start,
-					bounds.end,
+					date,
 					tx,
 				),
 			]);
@@ -185,13 +211,15 @@ export class AppointmentsService {
 				input,
 				clinicId,
 				ownerId,
+				visitType.id,
 				tx,
 			);
 			await createBillForAppointment(
 				clinicId,
 				appointment.patientId,
 				appointment.id,
-				String(doctor.consultationFee),
+				String(visitType.price ?? doctor.consultationFee),
+				ownerId,
 				tx,
 			);
 			return appointment;
@@ -214,6 +242,7 @@ export class AppointmentsService {
 		const schedulingFieldsChanged =
 			input.doctorId !== undefined ||
 			input.patientId !== undefined ||
+			input.visitTypeId !== undefined ||
 			input.appointmentDate !== undefined ||
 			input.startTime !== undefined ||
 			input.endTime !== undefined;
@@ -227,35 +256,44 @@ export class AppointmentsService {
 			return updateAppointmentById(clinicId, appointmentId, input);
 		}
 
+		const visitTypeId = input.visitTypeId ?? appointment.visitTypeId;
+		if (visitTypeId !== appointment.visitTypeId) {
+			const visitType = await findVisitTypeInClinic(
+				clinicId,
+				visitTypeId,
+			);
+			if (!visitType?.isActive) {
+				throw new NotFoundException(
+					"Visit type not found in this clinic",
+				);
+			}
+		}
 		const doctorId = input.doctorId ?? appointment.doctorId;
-		const date =
-			input.appointmentDate ??
-			appointment.appointmentDate.toString().slice(0, 10);
-		const startTime = input.startTime ?? appointment.startTime;
-		const endTime = input.endTime ?? appointment.endTime;
+		const date = input.appointmentDate ?? appointment.appointmentDate;
+		const startTime = input.startTime ?? appointment.startAt;
+		const endTime = input.endTime ?? appointment.endAt;
 		const startMinute = parseTimeMinutes(startTime);
 		const endMinute = parseTimeMinutes(endTime);
-		const bounds = getUtcDayBounds(date);
+		const bounds = getClinicDateRange(date);
 		if (
 			!bounds ||
 			startMinute === undefined ||
 			endMinute === undefined ||
-			endMinute === startMinute
+			endMinute <= startMinute
 		) {
 			throw new ConflictException(
 				"Appointment time range is invalid",
 			);
 		}
 
-		return db.transaction(async (tx) => {
+		return db.$transaction(async (tx) => {
 			await this.lockDoctorSchedule(tx, doctorId);
 			const [schedules, dayAppointments] = await Promise.all([
 				listDoctorSchedules(clinicId, doctorId as DoctorId, tx),
 				findDoctorAppointmentsForDate(
 					clinicId,
 					doctorId,
-					bounds.start,
-					bounds.end,
+					date,
 					tx,
 				),
 			]);
@@ -263,7 +301,9 @@ export class AppointmentsService {
 				(item) => item.id !== appointmentId,
 			);
 			if (
-				isAppointmentBlocking(input.status ?? appointment.status) &&
+				isAppointmentBlocking(
+					input.status ?? appointment.status,
+				) &&
 				this.hasPatientAppointmentOnDate(
 					input.patientId ?? appointment.patientId,
 					appointments,
@@ -348,15 +388,12 @@ export class AppointmentsService {
 	}
 
 	private async lockDoctorSchedule(
-		transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
+		transaction: PrismaTransaction,
 		doctorId: string,
 	) {
-		const lockPlan = db.raw.sql`
+		await transaction.$queryRaw`
 			SELECT pg_advisory_xact_lock(hashtextextended(${doctorId}, 0)) IS NULL AS locked
-		`
-			.returnsRow({ locked: { codecId: "pg/bool@1" } })
-			.build();
-		await transaction.query(lockPlan);
+		`;
 	}
 
 	private isBookableSlot(

@@ -11,6 +11,7 @@ import { DoctorSchedulesController } from "../modules/doctor-schedules/doctor-sc
 import { DoctorsController } from "../modules/doctors/doctors.controller.ts";
 import { PatientsController } from "../modules/patients/patients.controller.ts";
 import { UsersController } from "../modules/users/users.controller.ts";
+import { VisitTypesController } from "../modules/visit-types/visit-types.controller.ts";
 import { AuthorizationService } from "./authorization.service.ts";
 import { ROLE_PERMISSIONS } from "./constants/role-permissions.constant.ts";
 import { PERMISSIONS_KEY } from "./decorators/require-permissions.decorator.ts";
@@ -47,17 +48,16 @@ test("role permission mapping contains the expected capabilities", async (t) => 
 
 	await t.test("doctor", () => {
 		assert.deepEqual(ROLE_PERMISSIONS[Role.DOCTOR], [
-			Permission.VIEW_DOCTORS,
-			Permission.VIEW_DOCTOR_DETAILS,
+			Permission.VIEW_CLINICS,
+			Permission.VIEW_CLINIC_DETAILS,
 			Permission.VIEW_PATIENTS,
 			Permission.VIEW_PATIENT_DETAILS,
 			Permission.VIEW_APPOINTMENTS,
 			Permission.VIEW_APPOINTMENT_DETAILS,
-			Permission.CREATE_APPOINTMENTS,
-			Permission.UPDATE_APPOINTMENTS,
-			Permission.DELETE_APPOINTMENTS,
 			Permission.VIEW_DOCTOR_SCHEDULES,
 			Permission.VIEW_DOCTOR_SCHEDULE_DETAILS,
+			Permission.VIEW_VISIT_TYPES,
+			Permission.VIEW_VISIT_TYPE_DETAILS,
 			Permission.CREATE_MEDICAL_RECORDS,
 			Permission.VIEW_MEDICAL_RECORDS,
 			Permission.VIEW_MEDICAL_RECORD_DETAILS,
@@ -77,8 +77,8 @@ test("role permission mapping contains the expected capabilities", async (t) => 
 			Permission.VIEW_DOCTOR_DETAILS,
 			Permission.VIEW_DOCTOR_SCHEDULES,
 			Permission.VIEW_DOCTOR_SCHEDULE_DETAILS,
-			Permission.VIEW_RECEPTIONISTS,
-			Permission.VIEW_RECEPTIONIST_DETAILS,
+			Permission.VIEW_VISIT_TYPES,
+			Permission.VIEW_VISIT_TYPE_DETAILS,
 			Permission.VIEW_PATIENTS,
 			Permission.VIEW_PATIENT_DETAILS,
 			Permission.CREATE_PATIENTS,
@@ -307,6 +307,41 @@ test("resource controllers declare the requested permissions", () => {
 			AppointmentsController.prototype.remove,
 		),
 		[Permission.DELETE_APPOINTMENTS],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			VisitTypesController.prototype.create,
+		),
+		[Permission.CREATE_VISIT_TYPES],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			VisitTypesController.prototype.findAll,
+		),
+		[Permission.VIEW_VISIT_TYPES],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			VisitTypesController.prototype.findOne,
+		),
+		[Permission.VIEW_VISIT_TYPE_DETAILS],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			VisitTypesController.prototype.update,
+		),
+		[Permission.UPDATE_VISIT_TYPES],
+	);
+	assert.deepEqual(
+		Reflect.getMetadata(
+			PERMISSIONS_KEY,
+			VisitTypesController.prototype.remove,
+		),
+		[Permission.DELETE_VISIT_TYPES],
 	);
 	assert.deepEqual(
 		Reflect.getMetadata(

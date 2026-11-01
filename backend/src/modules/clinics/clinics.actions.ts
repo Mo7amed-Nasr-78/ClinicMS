@@ -1,6 +1,5 @@
 import { db } from "../../prisma/db.ts";
 import { Status } from "../../prisma/enums.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { CreateClinicDto } from "./DTOs/createClinic.dto.ts";
 import type { UpdateClinicDto } from "./DTOs/updateClinic.dto.ts";
 
@@ -34,47 +33,89 @@ const patientFields = [
 	"updatedAt",
 ] as const;
 
+const patientSelect = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	dateOfBirth: true,
+	gender: true,
+	bloodType: true,
+	phone: true,
+	email: true,
+	address: true,
+	emergencyContact: true,
+	allergies: true,
+	clinicId: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
+
+const clinicSelect = {
+	id: true,
+	name: true,
+	email: true,
+	phone: true,
+	address: true,
+	logo: true,
+	ownerId: true,
+	status: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
+
+const userSummarySelect = {
+	id: true,
+	firstName: true,
+	lastName: true,
+	email: true,
+	phone: true,
+	role: true,
+	avatar: true,
+	status: true,
+} as const;
+
 export function findClinicByOwnerId(ownerId: string) {
-	return db.orm.public.Clinic.select(...clinicFields)
-		.include("user")
-		.first({
-			ownerId: ownerId as ClinicId,
-		});
-}
-
-export function findClinicById(clinicId: string) {
-	return db.orm.public.Clinic.select(...clinicFields)
-		.include("user")
-		.first({ id: clinicId as ClinicId });
-}
-
-export function findAllClinics() {
-	return db.orm.public.Clinic.select(...clinicFields)
-		.orderBy((clinic) => clinic.createdAt.desc())
-		.all();
-}
-
-export async function findClinicIdByOwnerId(ownerId: string) {
-	return db.orm.public.Clinic.select("id").first({
-		ownerId: ownerId as ClinicId,
+	return db.clinic.findUnique({
+		where: { ownerId },
+		select: { ...clinicSelect, user: { select: userSummarySelect } },
 	});
 }
 
-export type ClinicId = FieldOutputTypes["public"]["Clinic"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+export function findClinicById(clinicId: string) {
+	return db.clinic.findUnique({
+		where: { id: clinicId },
+		select: { ...clinicSelect, user: { select: userSummarySelect } },
+	});
+}
+
+export function findAllClinics() {
+	return db.clinic.findMany({
+		select: clinicSelect,
+		orderBy: { createdAt: "desc" },
+	});
+}
+
+export async function findClinicIdByOwnerId(ownerId: string) {
+	return db.clinic.findUnique({ where: { ownerId }, select: { id: true } });
+}
+
+export type ClinicId = string;
+type UserId = string;
 
 export async function findClinicIdForUser(userId: string) {
 	const ownedClinic = await findClinicIdByOwnerId(userId);
 	if (ownedClinic) return ownedClinic;
 
-	const doctor = await db.orm.public.Doctor.select("clinicId").first({
-		userId: userId as UserId,
+	const doctor = await db.doctor.findFirst({
+		where: { userId: userId as UserId },
+		select: { clinicId: true },
 	});
 	if (doctor) return { id: doctor.clinicId };
 
-	const receptionist = await db.orm.public.Receptionist.select(
-		"clinicId",
-	).first({ userId: userId as UserId });
+	const receptionist = await db.receptionist.findUnique({
+		where: { userId: userId as UserId },
+		select: { clinicId: true },
+	});
 	return receptionist ? { id: receptionist.clinicId } : null;
 }
 
@@ -100,37 +141,36 @@ export async function findDoctorsByClinicId(
 ) {
 	const pagination = normalizePagination(page, limit);
 	const [doctors, doctorCount] = await Promise.all([
-		db.orm.public.Doctor.select(
-			"id",
-			"specialty",
-			"licenseNumber",
-			"bio",
-			"consultationDuration",
-			"consultationFee",
-			"status",
-			"userId",
-			"clinicId",
-			"createdAt",
-			"updatedAt",
-		)
-			.where({ clinicId: clinicId as ClinicId })
-			.include("user", (user) =>
-				user.select(
-					"id",
-					"firstName",
-					"lastName",
-					"email",
-					"phone",
-					"avatar",
-				),
-			)
-			.orderBy((doctor) => doctor.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		db.orm.public.Doctor.where({
-			clinicId: clinicId as ClinicId,
-		}).aggregate((aggregate) => ({ total: aggregate.count() })),
+		db.doctor.findMany({
+			where: { clinicId },
+			select: {
+				id: true,
+				specialty: true,
+				licenseNumber: true,
+				bio: true,
+				consultationDuration: true,
+				consultationFee: true,
+				status: true,
+				userId: true,
+				clinicId: true,
+				createdAt: true,
+				updatedAt: true,
+				user: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
+						email: true,
+						phone: true,
+						avatar: true,
+					},
+				},
+			},
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.doctor.count({ where: { clinicId } }),
 	]);
 
 	return {
@@ -138,8 +178,8 @@ export async function findDoctorsByClinicId(
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: doctorCount.total,
-			totalPages: Math.ceil(doctorCount.total / pagination.limit),
+			total: doctorCount,
+			totalPages: Math.ceil(doctorCount / pagination.limit),
 		},
 	};
 }
@@ -151,47 +191,53 @@ export async function findPatientsByClinicId(
 ) {
 	const pagination = normalizePagination(page, limit);
 	const [patients, patientCount] = await Promise.all([
-		db.orm.public.Patient.select(...patientFields)
-			.where({ clinicId: clinicId as ClinicId })
-			.orderBy((patient) => patient.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		db.orm.public.Patient.where({
-			clinicId: clinicId as ClinicId,
-		}).aggregate((aggregate) => ({ total: aggregate.count() })),
+		db.patient.findMany({
+			where: { clinicId },
+			select: patientSelect,
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.patient.count({ where: { clinicId } }),
 	]);
 
 	return {
-		patients,
+		patients: patients.map((patient) => ({
+			...patient,
+			dateOfBirth: patient.dateOfBirth.toISOString().slice(0, 10),
+		})),
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: patientCount.total,
-			totalPages: Math.ceil(patientCount.total / pagination.limit),
+			total: patientCount,
+			totalPages: Math.ceil(patientCount / pagination.limit),
 		},
 	};
 }
 
 export function createClinic(ownerId: string, input: CreateClinicDto) {
-	return db.orm.public.Clinic.select(...clinicFields).create({
-		name: input.name,
-		email: input.email,
-		phone: input.phone,
-		address: input.address,
-		logo: input.logo ?? "",
-		ownerId: ownerId as ClinicId,
-		status: Status.ACTIVE,
+	return db.clinic.create({
+		data: {
+			name: input.name,
+			email: input.email,
+			phone: input.phone,
+			address: input.address,
+			logo: input.logo ?? "",
+			ownerId: ownerId as ClinicId,
+			status: Status.ACTIVE,
+		},
+		select: clinicSelect,
 	});
 }
 
 export function updateClinicById(clinicId: ClinicId, input: UpdateClinicDto) {
-	return db.orm.public.Clinic.select(...clinicFields).update(
-		{ id: clinicId },
-		input,
-	);
+	return db.clinic.update({
+		where: { id: clinicId },
+		data: input,
+		select: clinicSelect,
+	});
 }
 
 export function deleteClinic(ownerId: string) {
-	return db.orm.public.Clinic.delete({ ownerId: ownerId as ClinicId });
+	return db.clinic.delete({ where: { ownerId } });
 }

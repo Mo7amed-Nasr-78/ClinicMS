@@ -1,29 +1,28 @@
 import { db } from "../../prisma/db.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateMedicalRecordDto } from "./DTOs/createMedicalRecord.dto.ts";
 import type { UpdateMedicalRecordDto } from "./DTOs/updateMedicalRecord.dto.ts";
 
-const medicalRecordFields = [
-	"id",
-	"clinicId",
-	"patientId",
-	"doctorId",
-	"appointmentId",
-	"diagnosis",
-	"symptoms",
-	"examination",
-	"treatment",
-	"notes",
-	"createdAt",
-	"updatedAt",
-] as const;
+const medicalRecordSelect = {
+	id: true,
+	clinicId: true,
+	patientId: true,
+	doctorId: true,
+	appointmentId: true,
+	diagnosis: true,
+	symptoms: true,
+	examination: true,
+	treatment: true,
+	notes: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
-type MedicalRecordId = FieldOutputTypes["public"]["MedicalRecord"]["id"];
-type PatientId = FieldOutputTypes["public"]["Patient"]["id"];
-type DoctorId = FieldOutputTypes["public"]["Doctor"]["id"];
-type AppointmentId = FieldOutputTypes["public"]["Appointment"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+type MedicalRecordId = string;
+type PatientId = string;
+type DoctorId = string;
+type AppointmentId = string;
+type UserId = string;
 
 function normalizePagination(page: number, limit: number) {
 	const normalizedPage = Number.isFinite(page)
@@ -41,18 +40,24 @@ function normalizePagination(page: number, limit: number) {
 }
 
 function medicalRecordQuery(clinicId: ClinicId) {
-	return db.orm.public.MedicalRecord.select(...medicalRecordFields)
-		.where({ clinicId })
-		.include("patient", (patient) =>
-			patient.select("id", "firstName", "lastName"),
-		)
-		.include("doctor", (doctor) =>
-			doctor
-				.select("id", "specialty")
-				.include("user", (user) =>
-					user.select("firstName", "lastName"),
-				),
-		);
+	return {
+		where: { clinicId },
+		select: {
+			...medicalRecordSelect,
+			patient: {
+				select: { id: true, firstName: true, lastName: true },
+			},
+			doctor: {
+				select: {
+					id: true,
+					specialty: true,
+					user: {
+						select: { firstName: true, lastName: true },
+					},
+				},
+			},
+		},
+	};
 }
 
 export async function findMedicalRecordsByClinicId(
@@ -68,28 +73,15 @@ export async function findMedicalRecordsByClinicId(
 		...(doctorId && { doctorId: doctorId as DoctorId }),
 		...(patientId && { patientId: patientId as PatientId }),
 	};
-	const [medicalRecords, totalResult] = await Promise.all([
-		db.orm.public.MedicalRecord.select(...medicalRecordFields)
-			.where(filters)
-			.include("patient", (patient) =>
-				patient.select("id", "firstName", "lastName"),
-			)
-			.include("doctor", (doctor) =>
-				doctor
-					.select("id", "specialty")
-					.include("user", (user) =>
-						user.select("firstName", "lastName"),
-					),
-			)
-			.orderBy((record) => record.createdAt.desc())
-			.offset(pagination.offset)
-			.limit(pagination.limit)
-			.all(),
-		db.orm.public.MedicalRecord.where(filters).aggregate(
-			(aggregate) => ({
-				total: aggregate.count(),
-			}),
-		),
+	const [medicalRecords, total] = await Promise.all([
+		db.medicalRecord.findMany({
+			where: filters,
+			select: medicalRecordQuery(clinicId).select,
+			orderBy: { createdAt: "desc" },
+			skip: pagination.offset,
+			take: pagination.limit,
+		}),
+		db.medicalRecord.count({ where: filters }),
 	]);
 
 	return {
@@ -97,8 +89,8 @@ export async function findMedicalRecordsByClinicId(
 		pagination: {
 			page: pagination.page,
 			limit: pagination.limit,
-			total: totalResult.total,
-			totalPages: Math.ceil(totalResult.total / pagination.limit),
+			total,
+			totalPages: Math.ceil(total / pagination.limit),
 		},
 	};
 }
@@ -108,30 +100,34 @@ export function findMedicalRecordById(
 	medicalRecordId: string,
 	doctorId?: string,
 ) {
-	return medicalRecordQuery(clinicId).first({
-		id: medicalRecordId as MedicalRecordId,
-		...(doctorId && { doctorId: doctorId as DoctorId }),
+	return db.medicalRecord.findFirst({
+		...medicalRecordQuery(clinicId),
+		where: {
+			clinicId,
+			id: medicalRecordId as MedicalRecordId,
+			...(doctorId && { doctorId: doctorId as DoctorId }),
+		},
 	});
 }
 
 export function findDoctorIdByUserId(userId: string, clinicId: ClinicId) {
-	return db.orm.public.Doctor.select("id").first({
-		userId: userId as UserId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { userId: userId as UserId, clinicId },
+		select: { id: true },
 	});
 }
 
 export function findPatientInClinic(clinicId: ClinicId, patientId: string) {
-	return db.orm.public.Patient.select("id").first({
-		id: patientId as PatientId,
-		clinicId,
+	return db.patient.findFirst({
+		where: { id: patientId as PatientId, clinicId },
+		select: { id: true },
 	});
 }
 
 export function findDoctorInClinic(clinicId: ClinicId, doctorId: string) {
-	return db.orm.public.Doctor.select("id").first({
-		id: doctorId as DoctorId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { id: doctorId as DoctorId, clinicId },
+		select: { id: true },
 	});
 }
 
@@ -139,13 +135,9 @@ export function findAppointmentForMedicalRecord(
 	clinicId: ClinicId,
 	appointmentId: string,
 ) {
-	return db.orm.public.Appointment.select(
-		"id",
-		"patientId",
-		"doctorId",
-	).first({
-		id: appointmentId as AppointmentId,
-		clinicId,
+	return db.appointment.findFirst({
+		where: { id: appointmentId as AppointmentId, clinicId },
+		select: { id: true, patientId: true, doctorId: true },
 	});
 }
 
@@ -153,16 +145,19 @@ export function createMedicalRecord(
 	input: CreateMedicalRecordDto,
 	clinicId: ClinicId,
 ) {
-	return db.orm.public.MedicalRecord.select(...medicalRecordFields).create({
-		clinicId,
-		patientId: input.patientId as PatientId,
-		doctorId: input.doctorId as DoctorId,
-		appointmentId: input.appointmentId as AppointmentId,
-		diagnosis: input.diagnosis,
-		symptoms: input.symptoms,
-		examination: input.examination,
-		treatment: input.treatment,
-		notes: input.notes,
+	return db.medicalRecord.create({
+		data: {
+			clinicId,
+			patientId: input.patientId as PatientId,
+			doctorId: input.doctorId as DoctorId,
+			appointmentId: input.appointmentId as AppointmentId,
+			diagnosis: input.diagnosis,
+			symptoms: input.symptoms,
+			examination: input.examination,
+			treatment: input.treatment,
+			notes: input.notes,
+		},
+		select: medicalRecordSelect,
 	});
 }
 
@@ -172,13 +167,13 @@ export function updateMedicalRecordById(
 	input: UpdateMedicalRecordDto,
 	doctorId?: string,
 ) {
-	return db.orm.public.MedicalRecord.where({
-		id: medicalRecordId as MedicalRecordId,
-		clinicId,
-		...(doctorId && { doctorId: doctorId as DoctorId }),
-	})
-		.select(...medicalRecordFields)
-		.update({
+	return db.medicalRecord.update({
+		where: {
+			id: medicalRecordId as MedicalRecordId,
+			clinicId,
+			...(doctorId && { doctorId: doctorId as DoctorId }),
+		},
+		data: {
 			...(input.patientId !== undefined && {
 				patientId: input.patientId as PatientId,
 			}),
@@ -201,7 +196,9 @@ export function updateMedicalRecordById(
 				treatment: input.treatment,
 			}),
 			...(input.notes !== undefined && { notes: input.notes }),
-		});
+		},
+		select: medicalRecordSelect,
+	});
 }
 
 export function deleteMedicalRecordById(
@@ -209,9 +206,11 @@ export function deleteMedicalRecordById(
 	medicalRecordId: string,
 	doctorId?: string,
 ) {
-	return db.orm.public.MedicalRecord.where({
-		id: medicalRecordId as MedicalRecordId,
-		clinicId,
-		...(doctorId && { doctorId: doctorId as DoctorId }),
-	}).delete();
+	return db.medicalRecord.delete({
+		where: {
+			id: medicalRecordId as MedicalRecordId,
+			clinicId,
+			...(doctorId && { doctorId: doctorId as DoctorId }),
+		},
+	});
 }

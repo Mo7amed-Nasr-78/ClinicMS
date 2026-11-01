@@ -1,6 +1,4 @@
-import { enumType, member } from "@prisma/orm-postgres/contract-builder";
-
-export const Roles  ={
+export const Roles = {
 	ADMIN: "admin",
 	RECEPTIONIST: "receptionist",
 	DOCTOR: "doctor",
@@ -42,61 +40,46 @@ export const bill_Status = {
 	CANCELLED: "cancelled",
 } as const;
 
-const pgText = {
-	codecId: "pg/text@1",
-	nativeType: "text",
+export const Appointment_Source = {
+	RECEPTION: "reception",
+	ONLINE: "online",
+	WALK_IN: "walk_in",
 } as const;
 
-export const UserRole = enumType(
-	"user_role",
-	pgText,
-	member("admin", Roles.ADMIN),
-	member("receptionist", Roles.RECEPTIONIST),
-	member("doctor", Roles.DOCTOR),
-	member("patient", Roles.PATIENT),
-);
+export const Bill_Status = {
+	UNPAID: "unpaid",
+	PARTIAL: "partial",
+	PAID: "paid",
+} as const;
 
-export const UserStatus = enumType(
-	"user_status",
-	pgText,
-	member("active", Status.ACTIVE),
-	member("inActive", Status.INACTIVE),
-	member("suspended", Status.SUSPENEDED),
-);
+export const Payment_Method = {
+	CASH: "cash",
+	CARD: "card",
+	INSURANCE: "insurance",
+	OTHER: "other",
+} as const;
 
-export const PatientGender = enumType(
-	"patient_gender",
-	pgText,
-	member("male", Gender.MALE),
-	member("female", Gender.FEMALE),
-);
+export const Record_Status = {
+	DRAFT: "draft",
+	SIGNED: "signed",
+} as const;
 
-export const PatientStatus = enumType(
-	"patient_status",
-	pgText,
-	member("new", Patient_Status.NEW),
-	member("active", Patient_Status.ACTIVE),
-	member("inActive", Patient_Status.IN_ACTIVE),
-	member("archived", Patient_Status.ARCHIVED),
-);
+export const Prescription_Status = {
+	PENDING: "pending",
+	APPROVED: "approved",
+	DENIED: "denied",
+} as const;
 
-export const AppointmentStatus = enumType(
-	"appointment_status",
-	pgText,
-	member("scheduled", appointment_Status.SCHEDULED),
-	member("confirmed", appointment_Status.CONFIRMED),
-	member("checkedIn", appointment_Status.CHECKED_IN),
-	member("inProgress", appointment_Status.IN_PROGRESS),
-	member("completed", appointment_Status.COMPLETED),
-	member("cancelled", appointment_Status.CANCELLED),
-	member("noShow", appointment_Status.NO_SHOW),
-	member("rescheduled", appointment_Status.RESCHEDULED),
-);
+export const LabOrder_Status = {
+	ORDERED: "ordered",
+	RESULTED: "resulted",
+	CANCELLED: "cancelled",
+} as const;
 
-export const BillStatus = enumType(
-	"bill_status",
-	pgText,
-	member("unpaid", bill_Status.UNPAID),
-	member("paid", bill_Status.PAID),
-	member("cancelled", bill_Status.CANCELLED),
-);
+export const File_Related_Type = {
+	MEDICAL_RECORD: "medical_record",
+	PRESCRIPTION: "prescription",
+	LAB_RESULT: "lab_result",
+	BILL: "bill",
+	OTHER: "other",
+} as const;

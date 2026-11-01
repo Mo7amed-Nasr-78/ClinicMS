@@ -95,7 +95,8 @@ function formatAppointmentDate(value: string) {
 		: "Date unavailable";
 }
 
-function formatTime(value: string) {
+function formatTime(value: string | null | undefined) {
+	if (!value) return "Time unavailable";
 	const time = parse(value, "HH:mm", new Date());
 	return isValid(time) ? format(time, "h:mm a") : value;
 }
@@ -112,7 +113,7 @@ function doctorDisplayName(doctor?: {
 }
 
 function appointmentLabel(appointment: PatientDetails["appointments"][number]) {
-	return `${formatAppointmentDate(appointment.appointmentDate)} · ${formatTime(appointment.startTime)} · ${appointment.reason || "Appointment"}`;
+	return `${formatAppointmentDate(appointment.appointmentDate)} · ${formatTime(appointment.startAt)} · ${appointment.reason || "Appointment"}`;
 }
 
 export function PatientProfile({
@@ -758,7 +759,7 @@ export function PatientProfile({
 										</span>
 										<span className="text-xs text-ink-muted">
 											{formatTime(
-												appointment.startTime,
+												appointment.startAt,
 											)}
 										</span>
 									</div>
@@ -1005,7 +1006,7 @@ function InfoCard({
 	icon: LucideIcon;
 	iconClassName: string;
 	title: string;
-	subtitle: string;
+	subtitle?: string;
 	children: React.ReactNode;
 }) {
 	return (

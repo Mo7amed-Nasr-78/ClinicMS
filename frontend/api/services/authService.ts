@@ -1,6 +1,5 @@
 import axios from "axios";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { API_BASE_URL } from "../httpClient";
 
 export type RegisterPayload = {
 	firstName: string;
@@ -13,8 +12,12 @@ export type RegisterPayload = {
  * POST /auth/register — adjust the path / field names to match your backend.
  */
 export async function registerUser(payload: RegisterPayload) {
-	const { data } = await axios.post(`${API_URL}/auth/register`, payload, {
-		withCredentials: true,
-	});
+	const { data } = await axios.post(
+		`${API_BASE_URL}/auth/register`,
+		payload,
+		{
+			withCredentials: true,
+		},
+	);
 	return data;
 }

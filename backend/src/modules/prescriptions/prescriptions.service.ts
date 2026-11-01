@@ -69,7 +69,7 @@ export class PrescriptionsService {
 			input.doctorId,
 			input.appointmentId,
 		);
-		return createPrescription(input);
+		return createPrescription(input, clinicId);
 	}
 
 	async update(
@@ -155,12 +155,17 @@ export class PrescriptionsService {
 		clinicId: ClinicId,
 		patientId: string,
 		doctorId: string,
-		appointmentId: string,
+		appointmentId?: string | null,
 	) {
 		const [patient, doctor, appointment] = await Promise.all([
 			findPatientInClinic(clinicId, patientId),
 			findDoctorInClinic(clinicId, doctorId),
-			findAppointmentForPrescription(clinicId, appointmentId),
+			appointmentId
+				? findAppointmentForPrescription(
+						clinicId,
+						appointmentId,
+					)
+				: Promise.resolve(null),
 		]);
 		if (!patient) {
 			throw new NotFoundException(
@@ -172,14 +177,15 @@ export class PrescriptionsService {
 				"Doctor not found in this clinic",
 			);
 		}
-		if (!appointment) {
+		if (appointmentId && !appointment) {
 			throw new NotFoundException(
 				"Appointment not found in this clinic",
 			);
 		}
 		if (
-			appointment.patientId !== patientId ||
-			appointment.doctorId !== doctorId
+			appointment &&
+			(appointment.patientId !== patientId ||
+				appointment.doctorId !== doctorId)
 		) {
 			throw new BadRequestException(
 				"Prescription patient and doctor must match the appointment",

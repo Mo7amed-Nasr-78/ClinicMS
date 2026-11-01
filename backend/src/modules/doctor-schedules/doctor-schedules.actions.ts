@@ -1,42 +1,41 @@
-import { db } from "../../prisma/db.ts";
+import { db, type PrismaTransaction } from "../../prisma/db.ts";
 import { Temporal } from "temporal-polyfill";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 import type { CreateDoctorScheduleDto } from "./dto/create-doctor-schedule.dto.ts";
 import type { UpdateDoctorScheduleDto } from "./dto/update-doctor-schedule.dto.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 
-const doctorScheduleFields = [
-	"id",
-	"doctorId",
-	"dayOfWeek",
-	"startTime",
-	"endTime",
-	"isAvailable",
-	"isActive",
-	"slotDuration",
-	"effectiveFrom",
-	"effectiveTo",
-	"createdAt",
-	"updatedAt",
-] as const;
+const doctorScheduleSelect = {
+	id: true,
+	doctorId: true,
+	clinicId: true,
+	dayOfWeek: true,
+	startTime: true,
+	endTime: true,
+	isAvailable: true,
+	isActive: true,
+	slotDuration: true,
+	effectiveFrom: true,
+	effectiveTo: true,
+	createdAt: true,
+	updatedAt: true,
+} as const;
 
-export type DoctorScheduleId =
-	FieldOutputTypes["public"]["DoctorSchedule"]["id"];
-export type DoctorId = FieldOutputTypes["public"]["Doctor"]["id"];
+export type DoctorScheduleId = string;
+export type DoctorId = string;
 
-type UserId = FieldOutputTypes["public"]["User"]["id"];
-type OrmContext = Pick<typeof db, "orm">;
+type UserId = string;
+type OrmContext = Pick<PrismaTransaction, "doctorSchedule">;
 
 function toTemporalInstant(value: string) {
-	return Temporal.Instant.from(
+	return new Date(
 		/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value,
 	);
 }
 
 export async function findDoctorIdByUserId(userId: string, clinicId: ClinicId) {
-	const doctor = await db.orm.public.Doctor.select("id").first({
-		userId: userId as UserId,
-		clinicId,
+	const doctor = await db.doctor.findFirst({
+		where: { userId: userId as UserId, clinicId },
+		select: { id: true },
 	});
 	return doctor?.id;
 }
@@ -46,37 +45,38 @@ export async function listDoctorSchedules(
 	doctorId?: DoctorId,
 	client: OrmContext = db,
 ) {
-	return client.orm.public.DoctorSchedule.select(...doctorScheduleFields)
-		.where({ clinicId, ...(doctorId && { doctorId }) })
-		.orderBy((schedule) => schedule.createdAt.desc())
-		.all();
+	return client.doctorSchedule.findMany({
+		where: { clinicId, ...(doctorId && { doctorId }) },
+		select: doctorScheduleSelect,
+		orderBy: { createdAt: "desc" },
+	});
 }
 
 export async function findDoctorScheduleById(id: string) {
-	return db.orm.public.DoctorSchedule.select(...doctorScheduleFields).first(
-		{
-			id: id as DoctorScheduleId,
-		},
-	);
+	return db.doctorSchedule.findUnique({
+		where: { id: id as DoctorScheduleId },
+		select: doctorScheduleSelect,
+	});
 }
 
 export function createDoctorSchedule(
 	input: CreateDoctorScheduleDto,
 	clinicId: ClinicId,
 ) {
-	return db.orm.public.DoctorSchedule.select(
-		...doctorScheduleFields,
-	).create({
-		doctorId: input.doctorId as DoctorId,
-		clinicId,
-		dayOfWeek: input.dayOfWeek,
-		startTime: input.startTime,
-		endTime: input.endTime,
-		isAvailable: input.isAvailable,
-		isActive: input.isActive,
-		slotDuration: input.slotDuration,
-		effectiveFrom: toTemporalInstant(input.effectiveFrom),
-		effectiveTo: toTemporalInstant(input.effectiveTo),
+	return db.doctorSchedule.create({
+		data: {
+			doctorId: input.doctorId as DoctorId,
+			clinicId,
+			dayOfWeek: input.dayOfWeek,
+			startTime: input.startTime,
+			endTime: input.endTime,
+			isAvailable: input.isAvailable,
+			isActive: input.isActive,
+			slotDuration: input.slotDuration,
+			effectiveFrom: toTemporalInstant(input.effectiveFrom),
+			effectiveTo: toTemporalInstant(input.effectiveTo),
+		},
+		select: doctorScheduleSelect,
 	});
 }
 
@@ -107,15 +107,15 @@ export function updateDoctorSchedule(
 		}),
 	};
 
-	return db.orm.public.DoctorSchedule.where({
-		id: id as DoctorScheduleId,
-	})
-		.select(...doctorScheduleFields)
-		.update(updateData);
+	return db.doctorSchedule.update({
+		where: { id: id as DoctorScheduleId },
+		data: updateData,
+		select: doctorScheduleSelect,
+	});
 }
 
 export function deleteDoctorSchedule(id: string) {
-	return db.orm.public.DoctorSchedule.where({
-		id: id as DoctorScheduleId,
-	}).delete();
+	return db.doctorSchedule.delete({
+		where: { id: id as DoctorScheduleId },
+	});
 }

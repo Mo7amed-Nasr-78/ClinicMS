@@ -211,7 +211,7 @@ export function TodayQueue() {
 										/>
 										<time className="font-mono text-xs font-semibold tabular-nums text-ink">
 											{formatQueueTime(
-												appointment.startTime,
+												appointment.startAt,
 											)}
 										</time>
 									</div>

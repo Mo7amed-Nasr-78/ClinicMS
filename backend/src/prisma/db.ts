@@ -1,36 +1,31 @@
 import "dotenv/config";
-import postgres from "@prisma/orm-postgres/runtime";
+import { Injectable } from "@nestjs/common";
+import type { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "./generated/client/client.ts";
 
-import "temporal-polyfill/global";
+const connectionString = process.env.DATABASE_URL;
 
-import service from "../../service.ts";
-import type { Contract } from "./generated/contract.d.ts";
-import contractJson from "./generated/contract.json" with { type: "json" };
-
-function loadComposerDatabase() {
-  try {
-    return service.load().database.client;
-  } catch {
-    return undefined;
-  }
+if (!connectionString) {
+	throw new Error("DATABASE_URL must be set before the application starts");
 }
 
-export const db = process.env.DATABASE_URL
-  ? postgres<Contract>({ contractJson, url: process.env.DATABASE_URL })
-  : loadComposerDatabase() ?? postgres<Contract>({ contractJson });
+export const db = new PrismaClient({
+	adapter: new PrismaPg({ connectionString }),
+});
 
-let connection: Promise<void> | undefined;
+export type PrismaTransaction = Pick<
+	typeof db,
+	"$queryRaw" | "appointment" | "bill" | "doctorSchedule"
+>;
 
-export function connectDatabase(): Promise<void> {
-  connection ??= db
-    .connect()
-    .then(() => {
-      console.log("Database connected");
-    })
-    .catch((error: unknown) => {
-      connection = undefined;
-      console.error("Database connection failed", error);
-      throw error;
-    });
-  return connection;
+@Injectable()
+export class PrismaLifecycle implements OnModuleInit, OnModuleDestroy {
+	async onModuleInit() {
+		await db.$connect();
+	}
+
+	async onModuleDestroy() {
+		await db.$disconnect();
+	}
 }

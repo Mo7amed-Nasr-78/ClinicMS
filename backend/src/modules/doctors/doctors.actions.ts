@@ -5,19 +5,18 @@ import { db } from "../../prisma/db.ts";
 import { Roles, Status } from "../../prisma/enums.ts";
 import type { CreateDoctorDto } from "./DTOs/createDoctor.dto.ts";
 import type { UpdateDoctorDto } from "./DTOs/updateDoctor.dto.ts";
-import type { FieldOutputTypes } from "../../prisma/generated/contract.d.ts";
 
-type DoctorId = FieldOutputTypes["public"]["Doctor"]["id"];
-type UserId = FieldOutputTypes["public"]["User"]["id"];
+type DoctorId = string;
+type UserId = string;
 
 export async function findUserByEmail(email: string) {
-	return db.orm.public.User.select("id").first({ email });
+	return db.user.findUnique({ where: { email }, select: { id: true } });
 }
 
 export function findDoctorById(clinicId: ClinicId, doctorId: string) {
-	return db.orm.public.Doctor.select("id", "userId").first({
-		id: doctorId as DoctorId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { id: doctorId as DoctorId, clinicId },
+		select: { id: true, userId: true },
 	});
 }
 
@@ -25,70 +24,79 @@ export function findDoctorAvailabilityProfile(
 	clinicId: ClinicId,
 	doctorId: string,
 ) {
-	return db.orm.public.Doctor.select("id", "status").first({
-		id: doctorId as DoctorId,
-		clinicId,
+	return db.doctor.findFirst({
+		where: { id: doctorId as DoctorId, clinicId },
+		select: { id: true, status: true },
 	});
 }
 
 export function findAllDoctors(clinicId: ClinicId) {
-	return db.orm.public.Doctor.select(
-		"id",
-		"specialty",
-		"licenseNumber",
-		"bio",
-		"consultationDuration",
-		"consultationFee",
-		"status",
-		"userId",
-		"clinicId",
-		"createdAt",
-		"updatedAt",
-	)
-		.where({ clinicId })
-		.include("user", (user) =>
-			user.select(
-				"id",
-				"firstName",
-				"lastName",
-				"email",
-				"phone",
-				"avatar",
-			),
-		)
-		.orderBy((doctor) => doctor.createdAt.desc())
-		.all();
+	return db.doctor.findMany({
+		where: { clinicId },
+		select: {
+			id: true,
+			specialty: true,
+			licenseNumber: true,
+			bio: true,
+			consultationDuration: true,
+			consultationFee: true,
+			status: true,
+			userId: true,
+			clinicId: true,
+			createdAt: true,
+			updatedAt: true,
+			user: {
+				select: {
+					id: true,
+					firstName: true,
+					lastName: true,
+					email: true,
+					phone: true,
+					avatar: true,
+				},
+			},
+		},
+		orderBy: { createdAt: "desc" },
+	});
 }
 
 export async function createDoctor(input: CreateDoctorDto, clinicId: ClinicId) {
 	const passwordHash = await bcrypt.hash(input.password, 12);
-	const user = await db.orm.public.User.select("id", "email").create({
-		firstName: input.firstName ?? null,
-		lastName: input.lastName ?? null,
-		email: input.email,
-		password: passwordHash,
-		phone: input.phone ?? null,
-		role: Roles.DOCTOR,
-	});
+	return db.$transaction(async (transaction) => {
+		const user = await transaction.user.create({
+			data: {
+				firstName: input.firstName ?? null,
+				lastName: input.lastName ?? null,
+				email: input.email,
+				password: passwordHash,
+				phone: input.phone ?? null,
+				role: Roles.DOCTOR,
+			},
+			select: { id: true },
+		});
 
-	return db.orm.public.Doctor.select(
-		"id",
-		"specialty",
-		"licenseNumber",
-		"consultationDuration",
-		"consultationFee",
-		"status",
-		"userId",
-		"clinicId",
-	).create({
-		specialty: input.specialty,
-		licenseNumber: input.licenseNumber,
-		bio: "",
-		consultationDuration: String(input.consultationDuration),
-		consultationFee: String(input.consultationFee),
-		status: Status.ACTIVE,
-		userId: user.id,
-		clinicId,
+		return transaction.doctor.create({
+			data: {
+				specialty: input.specialty,
+				licenseNumber: input.licenseNumber,
+				bio: "",
+				consultationDuration: input.consultationDuration,
+				consultationFee: String(input.consultationFee),
+				status: Status.ACTIVE,
+				userId: user.id,
+				clinicId,
+			},
+			select: {
+				id: true,
+				specialty: true,
+				licenseNumber: true,
+				consultationDuration: true,
+				consultationFee: true,
+				status: true,
+				userId: true,
+				clinicId: true,
+			},
+		});
 	});
 }
 
@@ -105,42 +113,42 @@ export async function updateDoctor(
 		...(input.lastName !== undefined && { lastName: input.lastName }),
 		...(input.phone !== undefined && { phone: input.phone }),
 	};
-	if (Object.keys(userUpdate).length > 0) {
-		await db.orm.public.User.where({ id: userId as UserId }).update(
-			userUpdate,
-		);
-	}
+	return db.$transaction(async (transaction) => {
+		if (Object.keys(userUpdate).length > 0) {
+			await transaction.user.update({
+				where: { id: userId as UserId },
+				data: userUpdate,
+			});
+		}
 
-	return db.orm.public.Doctor.where({
-		id: doctorId as DoctorId,
-		clinicId,
-	})
-		.select(
-			"id",
-			"specialty",
-			"licenseNumber",
-			"consultationDuration",
-			"consultationFee",
-			"status",
-			"userId",
-			"clinicId",
-		)
-		.update({
-			...(input.specialty !== undefined && {
-				specialty: input.specialty,
-			}),
-			...(input.licenseNumber !== undefined && {
-				licenseNumber: input.licenseNumber,
-			}),
-			...(input.consultationDuration !== undefined && {
-				consultationDuration: String(
-					input.consultationDuration,
-				),
-			}),
-			...(input.consultationFee !== undefined && {
-				consultationFee: String(input.consultationFee),
-			}),
+		return transaction.doctor.update({
+			where: { id: doctorId as DoctorId, clinicId },
+			data: {
+				...(input.specialty !== undefined && {
+					specialty: input.specialty,
+				}),
+				...(input.licenseNumber !== undefined && {
+					licenseNumber: input.licenseNumber,
+				}),
+				...(input.consultationDuration !== undefined && {
+					consultationDuration: input.consultationDuration,
+				}),
+				...(input.consultationFee !== undefined && {
+					consultationFee: String(input.consultationFee),
+				}),
+			},
+			select: {
+				id: true,
+				specialty: true,
+				licenseNumber: true,
+				consultationDuration: true,
+				consultationFee: true,
+				status: true,
+				userId: true,
+				clinicId: true,
+			},
 		});
+	});
 }
 
 export async function deactivateDoctor(
@@ -148,23 +156,25 @@ export async function deactivateDoctor(
 	doctorId: string,
 	userId: string,
 ) {
-	await db.orm.public.User.where({ id: userId as UserId }).update({
-		status: Status.INACTIVE,
-	});
+	return db.$transaction(async (transaction) => {
+		await transaction.user.update({
+			where: { id: userId as UserId },
+			data: { status: Status.INACTIVE },
+		});
 
-	return db.orm.public.Doctor.where({
-		id: doctorId as DoctorId,
-		clinicId,
-	})
-		.select(
-			"id",
-			"specialty",
-			"licenseNumber",
-			"consultationDuration",
-			"consultationFee",
-			"status",
-			"userId",
-			"clinicId",
-		)
-		.update({ status: Status.INACTIVE });
+		return transaction.doctor.update({
+			where: { id: doctorId as DoctorId, clinicId },
+			data: { status: Status.INACTIVE },
+			select: {
+				id: true,
+				specialty: true,
+				licenseNumber: true,
+				consultationDuration: true,
+				consultationFee: true,
+				status: true,
+				userId: true,
+				clinicId: true,
+			},
+		});
+	});
 }

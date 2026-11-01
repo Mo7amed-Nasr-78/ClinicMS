@@ -23,6 +23,7 @@ import {
 } from "@/api/hooks/Patients";
 import { useCreateAppointment } from "@/api/hooks/Appointments";
 import { useDoctorOptions } from "@/api/hooks/Doctors";
+import { useVisitTypes } from "@/api/hooks/VisitTypes";
 import { patientSchema } from "@/api/schemas/patientSchema";
 import { getApiErrorMessage } from "@/api/services/clinicService";
 import { getDoctorAvailability } from "@/api/services/doctorsService";
@@ -107,6 +108,14 @@ export default function Patients() {
 	} = useDoctorOptions();
 	const { mutate: submitAppointment, isPending: isCreatingAppointment } =
 		useCreateAppointment();
+	const {
+		visitTypes,
+		loading: loadingVisitTypes,
+		error: visitTypesError,
+	} = useVisitTypes(patientForAppointment !== null);
+	const activeVisitTypes = visitTypes.filter(
+		(visitType) => visitType.isActive,
+	);
 	const schedulesQuery = useQuery({
 		queryKey: ["doctor-schedules", appointmentForm.doctorId],
 		queryFn: ({ signal }) =>
@@ -258,6 +267,7 @@ export default function Patients() {
 
 		if (
 			!appointmentForm.doctorId ||
+			!appointmentForm.visitTypeId ||
 			!appointmentForm.appointmentDate ||
 			!appointmentForm.startTime ||
 			!appointmentForm.endTime ||
@@ -300,6 +310,7 @@ export default function Patients() {
 			{
 				doctorId: appointmentForm.doctorId,
 				patientId: patientForAppointment.id,
+				visitTypeId: appointmentForm.visitTypeId,
 				appointmentDate: appointmentForm.appointmentDate,
 				startTime: appointmentForm.startTime,
 				endTime: appointmentForm.endTime,
@@ -1054,6 +1065,93 @@ export default function Patients() {
 										)}
 								</div>
 								<div className="space-y-1.5">
+									<Label htmlFor="appointment-visit-type">
+										Visit type{" "}
+										<span className="text-accent-strong">
+											*
+										</span>
+									</Label>
+									<Select
+										value={
+											appointmentForm.visitTypeId
+										}
+										onValueChange={(
+											visitTypeId,
+										) =>
+											setAppointmentForm(
+												(
+													current,
+												) => ({
+													...current,
+													visitTypeId,
+												}),
+											)
+										}
+										disabled={
+											loadingVisitTypes ||
+											Boolean(
+												visitTypesError,
+											) ||
+											activeVisitTypes.length ===
+												0
+										}
+									>
+										<SelectTrigger
+											id="appointment-visit-type"
+											className="w-full"
+											aria-label="Select visit type"
+										>
+											<SelectValue
+												placeholder={
+													loadingVisitTypes
+														? "Loading visit types..."
+														: "Select visit type"
+												}
+											/>
+										</SelectTrigger>
+										<SelectContent>
+											{activeVisitTypes.map(
+												(
+													visitType,
+												) => (
+													<SelectItem
+														key={
+															visitType.id
+														}
+														value={
+															visitType.id
+														}
+													>
+														{
+															visitType.name
+														}
+													</SelectItem>
+												),
+											)}
+										</SelectContent>
+									</Select>
+									{visitTypesError && (
+										<p
+											role="alert"
+											className="text-xs text-accent-strong"
+										>
+											{visitTypesError}
+										</p>
+									)}
+									{!loadingVisitTypes &&
+										!visitTypesError &&
+										activeVisitTypes.length ===
+											0 && (
+											<p className="text-xs text-ink-muted">
+												No
+												active
+												visit
+												types
+												available.
+											</p>
+										)}
+								</div>
+								<div className="space-y-1.5">
 									<Label htmlFor="appointment-date">
 										Appointment date{" "}
 										<span className="text-accent-strong">
@@ -1393,7 +1491,10 @@ export default function Patients() {
 									isCreatingAppointment ||
 									loadingDoctors ||
 									Boolean(doctorsError) ||
-									activeDoctors.length === 0
+									activeDoctors.length === 0 ||
+									loadingVisitTypes ||
+									Boolean(visitTypesError) ||
+									activeVisitTypes.length === 0
 								}
 							>
 								{isCreatingAppointment

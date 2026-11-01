@@ -8,9 +8,13 @@ export type AvailabilitySchedule = {
 	isAvailable: boolean;
 	isActive: boolean;
 	slotDuration: number;
-	effectiveFrom: Temporal.Instant | null;
-	effectiveTo: Temporal.Instant | null;
+	effectiveFrom: Temporal.Instant | Date | null;
+	effectiveTo: Temporal.Instant | Date | null;
 };
+
+function epochMilliseconds(value: Temporal.Instant | Date) {
+	return value instanceof Date ? value.getTime() : value.epochMilliseconds;
+}
 
 export type AvailabilityAppointment = {
 	status: string;
@@ -135,7 +139,9 @@ export function calculateAvailabilitySlots(
 			return { start, end };
 		})
 		.filter(
-			(appointment) =>
+			(
+				appointment,
+			): appointment is { start: number; end: number } =>
 				appointment.start !== undefined &&
 				appointment.end !== undefined &&
 				appointment.end > appointment.start,
@@ -161,10 +167,10 @@ export function calculateAvailabilitySlots(
 			!schedule.isActive ||
 			schedule.dayOfWeek !== bounds.weekday ||
 			(schedule.effectiveFrom &&
-				schedule.effectiveFrom.epochMilliseconds >=
+				epochMilliseconds(schedule.effectiveFrom) >=
 					bounds.end.epochMilliseconds) ||
 			(schedule.effectiveTo &&
-				schedule.effectiveTo.epochMilliseconds <
+				epochMilliseconds(schedule.effectiveTo) <
 					bounds.start.epochMilliseconds)
 		) {
 			continue;

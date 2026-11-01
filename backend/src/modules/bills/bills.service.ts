@@ -31,7 +31,9 @@ export class BillsService {
 		const clinicId = await this.getClinicId(userId);
 		const validStatus = this.parseStatus(status);
 		if (patientId && !(await findPatientForBill(clinicId, patientId))) {
-			throw new NotFoundException("Patient not found in this clinic");
+			throw new NotFoundException(
+				"Patient not found in this clinic",
+			);
 		}
 
 		return findBillsByClinicId(
@@ -57,7 +59,7 @@ export class BillsService {
 			input.patientId,
 			input.appointmentId,
 		);
-		return createBill(input, clinicId);
+		return createBill(input, clinicId, userId);
 	}
 
 	async update(userId: string, billId: string, input: UpdateBillDto) {
@@ -92,7 +94,8 @@ export class BillsService {
 		const validStatus = Object.values(bill_Status).find(
 			(value) => value === status,
 		);
-		if (!validStatus) throw new BadRequestException("Invalid bill status");
+		if (!validStatus)
+			throw new BadRequestException("Invalid bill status");
 		return validStatus as BillStatus;
 	}
 
@@ -103,7 +106,9 @@ export class BillsService {
 	) {
 		const patient = await findPatientForBill(clinicId, patientId);
 		if (!patient) {
-			throw new NotFoundException("Patient not found in this clinic");
+			throw new NotFoundException(
+				"Patient not found in this clinic",
+			);
 		}
 		if (!appointmentId) return;
 

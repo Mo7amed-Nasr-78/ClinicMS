@@ -15,6 +15,7 @@ import {
 	type DoctorSchedule,
 } from "@/api/services/doctorScheduleService";
 import type { Patient } from "@/api/services/patientService";
+import { useVisitTypes } from "@/api/hooks/VisitTypes";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -79,6 +80,16 @@ export function AppointmentDialogs({
 	onDelete,
 }: AppointmentDialogsProps) {
 	const [calendarOpen, setCalendarOpen] = useState(false);
+	const {
+		visitTypes,
+		loading: visitTypesLoading,
+		error: visitTypesError,
+	} = useVisitTypes(formOpen);
+	const visitTypeOptions = visitTypes.filter(
+		(visitType) =>
+			visitType.isActive ||
+			visitType.id === editingAppointment?.visitTypeId,
+	);
 	const doctorOptions = doctors.filter(
 		(doctor) =>
 			doctor.status?.toLowerCase() !== "inactive" ||
@@ -300,6 +311,59 @@ export function AppointmentDialogs({
 											)}
 										</SelectContent>
 									</Select>
+								</div>
+								<div className="space-y-1.5">
+									<Label htmlFor="appointment-visit-type">
+										Visit type{" "}
+										<span className="text-accent-strong">
+											*
+										</span>
+									</Label>
+									<Select
+										value={form.visitTypeId}
+										onValueChange={(value) =>
+											onFormChange(
+												"visitTypeId",
+												value,
+											)
+										}
+										disabled={visitTypesLoading || Boolean(visitTypesError)}
+									>
+										<SelectTrigger
+											id="appointment-visit-type"
+											className="w-full"
+										>
+											<SelectValue
+												placeholder={
+													visitTypesLoading
+														? "Loading visit types..."
+														: "Select visit type"
+												}
+											/>
+										</SelectTrigger>
+										<SelectContent>
+											{visitTypeOptions.map((visitType) => (
+												<SelectItem
+													key={visitType.id}
+													value={visitType.id}
+												>
+													{visitType.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{visitTypesError && (
+										<p className="text-sm text-destructive" role="alert">
+											{visitTypesError}
+										</p>
+									)}
+									{!visitTypesLoading &&
+										!visitTypesError &&
+										visitTypeOptions.length === 0 && (
+											<p className="text-sm text-ink-muted">
+												No active visit types are available.
+											</p>
+										)}
 								</div>
 								<div className="space-y-1.5">
 									<Label htmlFor="appointment-date">

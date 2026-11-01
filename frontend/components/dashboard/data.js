@@ -13,6 +13,7 @@ import {
 	Receipt,
 	CheckCircle2,
 	Stethoscope,
+	ListChecks,
 } from "lucide-react";
 
 export const NAV_ITEMS = [
@@ -22,6 +23,12 @@ export const NAV_ITEMS = [
 		icon: Calendar,
 		href: "/dashboard/doctor-schedules",
 		permission: "view:doctor-schedules",
+	},
+	{
+		label: "Visit Types",
+		icon: ListChecks,
+		href: "/dashboard/visit-types",
+		permission: "view:visit-types",
 	},
 	{
 		label: "Appointments",
@@ -55,19 +62,19 @@ export const NAV_ITEMS = [
 				key: "Doctors report",
 				label: "Doctors",
 				href: "/dashboard/reports/doctors",
-				permission: "view:doctors",
+				permission: "doctors:report",
 			},
 			{
 				key: "Patients report",
 				label: "Patients",
 				href: "/dashboard/reports/patients",
-				permission: "view:patients",
+				permission: "patients:report",
 			},
 			{
 				key: "Appointments report",
 				label: "Appointments",
 				href: "/dashboard/reports/appointments",
-				permission: "view:appointments",
+				permission: "appointments:report",
 			},
 		],
 	},

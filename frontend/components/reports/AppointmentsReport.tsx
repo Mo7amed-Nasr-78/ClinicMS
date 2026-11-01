@@ -6,7 +6,8 @@ import { getApiErrorMessage } from "@/api/services/clinicService";
 import { getTodaysAppointmentsReport } from "@/api/services/reportsService";
 import { ReportPageLayout } from "@/components/reports/ReportPageLayout";
 
-function displayTime(value: string) {
+function displayTime(value: string | null | undefined) {
+	if (!value) return "Time unavailable";
 	const time = parse(value, "HH:mm", new Date());
 	return isValid(time) ? format(time, "h:mm a") : value;
 }
@@ -100,13 +101,13 @@ export function AppointmentsReport() {
 								>
 									<td className="whitespace-nowrap py-3 pr-3 font-medium text-ink">
 										{displayTime(
-											appointment.startTime,
+											appointment.startAt,
 										)}
 										<span className="px-1.5 text-ink-faint">
 											–
 										</span>
 										{displayTime(
-											appointment.endTime,
+											appointment.endAt,
 										)}
 									</td>
 									<td className="px-3 py-3">
