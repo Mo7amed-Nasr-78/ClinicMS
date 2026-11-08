@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { db, type PrismaTransaction } from "../../prisma/db.ts";
-import { bill_Status } from "../../prisma/enums.ts";
+import { db, type PrismaTransaction } from "../../../prisma/db.ts";
+import {
+	bill_Status,
+	type BillStatus,
+	type Payment_Method,
+} from "../../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateBillDto } from "./DTOs/createBill.dto.ts";
 import type { UpdateBillDto } from "./DTOs/updateBill.dto.ts";
@@ -40,7 +44,7 @@ const billSelect = {
 type BillId = string;
 export type PatientId = string;
 type AppointmentId = string;
-export type BillStatus = string;
+export type { BillStatus };
 
 function billWithAppointmentDateOnly<
 	T extends {
@@ -217,7 +221,7 @@ export function createBillForAppointment(
 			invoiceNumber: `INV-${randomUUID()}`,
 			amount,
 			description: "Appointment consultation fee",
-			status: bill_Status.UNPAID,
+			status: bill_Status.unpaid,
 			createdBy,
 		},
 		select: billSelect,
@@ -260,4 +264,89 @@ export function updateBillById(
 
 export function deleteBillById(clinicId: ClinicId, billId: string) {
 	return db.bill.delete({ where: { id: billId as BillId, clinicId } });
+}
+
+export function recordBillPayment(
+	clinicId: ClinicId,
+	billId: string,
+	method: Payment_Method,
+	receivedBy: string,
+) {
+	return db.$transaction(async (transaction) => {
+		const bill = await transaction.bill.findFirst({
+			where: { id: billId as BillId, clinicId },
+			select: { id: true, status: true },
+		});
+		if (!bill) return { status: "not_found" as const };
+		if (bill.status !== bill_Status.unpaid) {
+			return { status: "not_unpaid" as const };
+		}
+
+		const updated = await transaction.bill.updateMany({
+			where: {
+				id: billId as BillId,
+				clinicId,
+				status: bill_Status.unpaid,
+			},
+			data: { status: bill_Status.paid },
+		});
+		if (updated.count !== 1) {
+			return { status: "not_unpaid" as const };
+		}
+
+		const paidBill = await transaction.bill.findFirstOrThrow({
+			where: {
+				id: billId as BillId,
+				clinicId,
+				status: bill_Status.paid,
+			},
+			select: { id: true, amount: true },
+		});
+
+		const payment = await transaction.payment.create({
+			data: {
+				clinicId,
+				billId: paidBill.id,
+				amount: paidBill.amount,
+				method,
+				receivedBy,
+				paidAt: new Date(),
+			},
+			select: {
+				id: true,
+				clinicId: true,
+				billId: true,
+				amount: true,
+				method: true,
+				receivedBy: true,
+				paidAt: true,
+				createdAt: true,
+				bill: {
+					select: {
+						...billSelect,
+						patient: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								phone: true,
+								email: true,
+							},
+						},
+						appointment: {
+							select: {
+								id: true,
+								appointmentDate: true,
+								startAt: true,
+								endAt: true,
+								status: true,
+							},
+						},
+					},
+				},
+			},
+		});
+
+		return { status: "recorded" as const, payment };
+	});
 }

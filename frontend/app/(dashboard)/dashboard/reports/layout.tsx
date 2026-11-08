@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AccessDeniedPage } from "@/components/auth/AccessDeniedPage";
 import { PermissionGate } from "@/components/auth/PermissionGate";
 
 export default function ReportsLayout({
@@ -7,7 +8,11 @@ export default function ReportsLayout({
 	children: ReactNode;
 }) {
 	return (
-		<PermissionGate permissions={["doctors:report", "appointments:report", "patients:report"]}>
+		<PermissionGate
+			permissions={["doctors:report", "appointments:report", "patients:report"]}
+			mode="any"
+			fallback={<AccessDeniedPage />}
+		>
 			{children}
 		</PermissionGate>
 	);

@@ -6,9 +6,11 @@ import {
 	createBill,
 	deleteBill,
 	getBills,
+	recordBillPayment,
 	updateBill,
 	type BillStatus,
 	type CreateBillPayload,
+	type PaymentMethod,
 	type UpdateBillPayload,
 } from "@/api/services/billsService";
 
@@ -69,6 +71,23 @@ export function useDeleteBill() {
 
 	return useMutation({
 		mutationFn: (billId: string) => deleteBill(billId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["bills"] });
+		},
+	});
+}
+
+export function useRecordBillPayment() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			billId,
+			method,
+		}: {
+			billId: string;
+			method: PaymentMethod;
+		}) => recordBillPayment(billId, method),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["bills"] });
 		},

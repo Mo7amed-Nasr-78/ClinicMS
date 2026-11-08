@@ -5,7 +5,7 @@ import { ThemeToggle } from "../shared/ThemeToggle";
 
 export function Topbar({ onMenuClick, title = "" }) {
   return (
-    <header className={`sticky top-0 z-30 h-16 border-b border-line bg-bg backdrop-blur-3xl flex items-center justify-between gap-4 py-4`}>
+    <header className={`sticky top-0 z-50 h-16 border-b border-line bg-bg backdrop-blur-3xl flex items-center justify-between gap-4 py-4`}>
       {title && (
         <h1 className="mt-1 font-serif text-4xl font-normal text-ink capitalize">
           { title }

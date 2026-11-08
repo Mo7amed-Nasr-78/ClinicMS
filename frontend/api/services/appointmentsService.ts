@@ -14,13 +14,28 @@ export type CreateAppointmentPayload = {
 
 export type UpdateAppointmentPayload = Partial<CreateAppointmentPayload>;
 
-export type Appointment = Omit<CreateAppointmentPayload, "visitTypeId"> & {
+export type Appointment = {
 	id: string;
 	clinicId: string;
+	doctorId: string;
+	patientId: string;
+	appointmentDate: string;
+	startAt: string;
+	endAt: string;
+	status: string;
+	source: string;
+	reason: string | null;
+	notes: string | null;
 	createdBy: string;
 	createdAt: string;
 	updatedAt: string;
 	visitTypeId: string | null;
+	checkedInAt: string | null;
+	startedAt: string | null;
+	completedAt: string | null;
+	cancelledAt: string | null;
+	cancelReason: string | null;
+	cancelledBy: string | null;
 };
 
 export type AppointmentWithRelations = Appointment & {
@@ -88,6 +103,26 @@ export async function updateAppointment(
 	const { data } = await httpClient.patch<Appointment>(
 		`/appointments/${appointmentId}`,
 		payload,
+	);
+	return data;
+}
+
+export async function cancelAppointment(
+	appointmentId: string,
+	cancelReason: string,
+): Promise<Appointment> {
+	const { data } = await httpClient.patch<Appointment>(
+		`/appointments/${appointmentId}/cancel`,
+		{ cancelReason },
+	);
+	return data;
+}
+
+export async function completeAppointment(
+	appointmentId: string,
+): Promise<Appointment> {
+	const { data } = await httpClient.patch<Appointment>(
+		`/appointments/${appointmentId}/complete`,
 	);
 	return data;
 }

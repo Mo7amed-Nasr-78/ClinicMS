@@ -1,9 +1,11 @@
 import {
+	BadRequestException,
 	ConflictException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
 
+import { Patient_Status } from "../../../prisma/enums.ts";
 import { Role } from "../../authorization/enums/role.enum.ts";
 import { findClinicIdForUser } from "../clinics/clinics.actions";
 import type { ClinicId } from "../clinics/clinics.actions";
@@ -31,6 +33,15 @@ export class PatientsService {
 		status?: string,
 	) {
 		const clinicId = await this.getClinicId(userId);
+		const patientStatus = status
+			? Object.values(Patient_Status).find(
+					(allowedStatus) => allowedStatus === status,
+				)
+			: undefined;
+		if (status && !patientStatus) {
+			throw new BadRequestException("Invalid patient status");
+		}
+
 		if (role === Role.DOCTOR) {
 			const doctorId = await findDoctorIdByUserId(userId, clinicId);
 			if (!doctorId) {
@@ -41,11 +52,17 @@ export class PatientsService {
 				page,
 				limit,
 				doctorId,
-				status,
+				patientStatus,
 			);
 		}
 
-		return findPatientsByClinicId(clinicId, page, limit, undefined, status);
+		return findPatientsByClinicId(
+			clinicId,
+			page,
+			limit,
+			undefined,
+			patientStatus,
+		);
 	}
 
 	async findOne(ownerId: string, patientId: string) {

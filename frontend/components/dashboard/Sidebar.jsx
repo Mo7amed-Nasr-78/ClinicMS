@@ -152,7 +152,7 @@ function NavList({ onNavigate, activeItem }) {
 					>
 						<Link
 							key={item.label}
-							href={item.href ?? "#"}
+							href={item.href ?? ""}
 							onClick={onNavigate}
 							className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[0.9rem] transition-colors duration-150 ${
 								isActive
@@ -220,7 +220,7 @@ export function Sidebar({ open, onClose, activeItem = "Dashboard" }) {
 	return (
 		<>
 			{/* Desktop */}
-			<aside className="hidden h-screen lg:flex lg:flex-col lg:w-60 lg:shrink-0 border-r border-line bg-surface">
+			<aside className="hidden h-screen lg:flex lg:flex-col lg:w-60 lg:shrink-0 border-r border-line bg-surface rounded-tr-4xl rounded-br-4xl">
 				<div className="flex h-16 items-center border-b border-line px-3">
 					<ClinicBrand />
 				</div>

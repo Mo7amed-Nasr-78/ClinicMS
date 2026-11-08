@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
-import { db } from "../../prisma/db.ts";
-import { Roles } from "../../prisma/enums.ts";
+import { db } from "../../../prisma/db.ts";
+import { Roles } from "../../../prisma/enums.ts";
 import type { RegisterUserDto } from "./DTOs/registerUser.dto.ts";
 
 export async function findUserByEmail(email: string) {
@@ -17,7 +17,7 @@ export async function registerUser(input: RegisterUserDto) {
 			lastName: input.lastName ?? null,
 			email: input.email,
 			password: passwordHash,
-			role: Roles.ADMIN,
+			role: Roles.admin,
 		},
 		select: {
 			id: true,

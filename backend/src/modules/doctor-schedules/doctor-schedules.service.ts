@@ -5,7 +5,7 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 
-import { db } from "../../prisma/db.ts";
+import { db } from "../../../prisma/db.ts";
 import { Role } from "../../authorization/enums/role.enum.ts";
 import { findClinicIdForUser } from "../clinics/clinics.actions";
 import type { ClinicId } from "../clinics/clinics.actions.ts";

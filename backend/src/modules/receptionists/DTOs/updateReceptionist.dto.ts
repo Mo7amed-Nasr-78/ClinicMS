@@ -1,5 +1,5 @@
 import { IsIn, IsOptional, IsString } from "class-validator";
-import { Status } from "../../../prisma/enums.ts";
+import { Status } from "../../../../prisma/enums.ts";
 
 export class UpdateReceptionistDto {
 	@IsOptional()

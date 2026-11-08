@@ -9,8 +9,10 @@ import { StatsGrid } from "@/components/dashboard/StatsGrid";
 import { TodayQueue } from "@/components/dashboard/TodayQueue";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { WaitingPatientsCard } from "@/components/dashboard/WaitingPatientsCard";
+import { InProgressPatientsCard } from "@/components/dashboard/InProgressPatientsCard";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
-import { WeeklyOverview } from "@/components/dashboard/WeeklyOverview";
+import { UnpaidBillsCard } from "@/components/dashboard/UnpaidBillsCard";
+// import { WeeklyOverview } from "@/components/dashboard/WeeklyOverview";
 
 export default function DashboardHome() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -43,7 +45,13 @@ export default function DashboardHome() {
 							) : (
 								<QuickActions />
 							)}
-							<ActivityFeed />
+							{isDoctor ? (
+								<InProgressPatientsCard />
+							) : isReceptionist ? (
+								<UnpaidBillsCard />
+							) : (
+								<ActivityFeed />
+							)}
 						</div>
 					</div>
 

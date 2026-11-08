@@ -148,10 +148,10 @@ export function AppointmentDialogs({
 			canLoadAvailability,
 	});
 	const currentAppointmentStart = editingAppointment
-		? toTimeInput(editingAppointment.startTime)
+		? toTimeInput(editingAppointment.startAt)
 		: "";
 	const currentAppointmentEnd = editingAppointment
-		? toTimeInput(editingAppointment.endTime)
+		? toTimeInput(editingAppointment.endAt)
 		: "";
 	const isCurrentSlot =
 		form.doctorId === editingAppointment?.doctorId &&

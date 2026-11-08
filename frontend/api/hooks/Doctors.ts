@@ -10,16 +10,22 @@ import {
 	getDoctorOptions,
 	updateDoctor,
 	type CreateDoctorPayload,
+	type ClinicDoctorsQueryParams,
 	type UpdateDoctorPayload,
 } from "@/api/services/doctorsService";
 
-export function useDoctors(page = 1, limit = 20, enabled = true) {
+export function useDoctors(
+	page = 1,
+	limit = 20,
+	enabled = true,
+	queryParams: ClinicDoctorsQueryParams = {},
+) {
 	const query = useQuery({
-		queryKey: ["doctors", page, limit],
+		queryKey: ["doctors", page, limit, queryParams],
 		enabled,
 		queryFn: async ({ signal }) => {
 			const clinic = await getMyClinic();
-			return getClinicDoctors(clinic.id, page, limit, signal);
+			return getClinicDoctors(clinic.id, page, limit, signal, queryParams);
 		},
 	});
 
@@ -40,10 +46,12 @@ export function useDoctors(page = 1, limit = 20, enabled = true) {
 	};
 }
 
-export function useDoctorOptions() {
+export function useDoctorOptions(
+	queryParams: ClinicDoctorsQueryParams = {},
+) {
 	const query = useQuery({
-		queryKey: ["doctor-options"],
-		queryFn: ({ signal }) => getDoctorOptions(signal),
+		queryKey: ["doctor-options", queryParams],
+		queryFn: ({ signal }) => getDoctorOptions(signal, queryParams),
 	});
 
 	return {
@@ -60,6 +68,7 @@ export function useCreateDoctor() {
 		mutationFn: (payload: CreateDoctorPayload) => createDoctor(payload),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["doctors"] });
+			queryClient.invalidateQueries({ queryKey: ["doctor-options"] });
 		},
 	});
 }
@@ -77,6 +86,7 @@ export function useUpdateDoctor() {
 		}) => updateDoctor(id, payload),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["doctors"] });
+			queryClient.invalidateQueries({ queryKey: ["doctor-options"] });
 		},
 	});
 }
@@ -88,6 +98,7 @@ export function useDeleteDoctor() {
 		mutationFn: (id: string) => deactivateDoctor(id),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["doctors"] });
+			queryClient.invalidateQueries({ queryKey: ["doctor-options"] });
 		},
 	});
 }

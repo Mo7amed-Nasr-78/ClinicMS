@@ -19,6 +19,7 @@ import { AuthGuard } from "../../guards/authGuard";
 import type { AuthenticatedRequest } from "../../guards/authGuard";
 import { CreateBillDto } from "./DTOs/createBill.dto";
 import { UpdateBillDto } from "./DTOs/updateBill.dto";
+import { RecordBillPaymentDto } from "./DTOs/recordBillPayment.dto";
 import { BillsService } from "./bills.service";
 
 @Controller("bills")
@@ -63,6 +64,20 @@ export class BillsController {
 		@Body() input: CreateBillDto,
 	) {
 		return this.billsService.create(request.user.sub, input);
+	}
+
+	@Post(":billId/payments")
+	@RequirePermissions(Permission.CREATE_PAYMENTS)
+	recordPayment(
+		@Req() request: AuthenticatedRequest,
+		@Param("billId", ParseUUIDPipe) billId: string,
+		@Body() input: RecordBillPaymentDto,
+	) {
+		return this.billsService.recordPayment(
+			request.user.sub,
+			billId,
+			input,
+		);
 	}
 
 	@Patch(":billId")

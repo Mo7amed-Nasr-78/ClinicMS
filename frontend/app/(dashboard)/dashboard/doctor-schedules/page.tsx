@@ -3,9 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import {
-	CalendarDays,
 	LoaderCircle,
-	Pencil,
 	Plus,
 	RefreshCw,
 	Search,
@@ -95,7 +93,7 @@ export default function DoctorSchedulesPage() {
 		loading: doctorsLoading,
 		error: doctorsError,
 		refetch: refetchDoctors,
-	} = useDoctors(1, 100, canViewDoctors);
+	} = useDoctors(1, 100, canViewDoctors, { status: "active" });
 	const { mutate: submitSchedule, isPending: isCreating } =
 		useCreateDoctorSchedule();
 	const { mutate: updateSchedule, isPending: isUpdating } =
@@ -382,7 +380,7 @@ export default function DoctorSchedulesPage() {
 				}}
 			>
 				<DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-lg sm:max-w-2xl">
-					<DialogHeader className="border-b border-line pb-4 pr-8 mb-3">
+					<DialogHeader className="border-b border-line px-6 pb-3 mb-3">
 						<div className="space-y-1">
 							<DialogTitle className="text-xl font-semibold text-ink sm:text-2xl">
 								Add doctor schedule
@@ -397,96 +395,98 @@ export default function DoctorSchedulesPage() {
 						className="space-y-6"
 						onSubmit={handleCreate}
 					>
-						<div className="space-y-1.5">
-							<Label htmlFor="schedule-doctor">
-								Doctor
-							</Label>
-							<Select
-								value={form.doctorId}
-								onValueChange={(doctorId) =>
-									setForm((current) => ({
-										...current,
-										doctorId,
-									}))
-								}
-							>
-								<SelectTrigger
-									id="schedule-doctor"
-									className="w-full hover:border-brand focus-visible:border-brand focus-visible:ring-brand/30"
+						<div className="space-y-6 px-6">
+							<div className="space-y-1.5">
+								<Label htmlFor="schedule-doctor">
+									Doctor
+								</Label>
+								<Select
+									value={form.doctorId}
+									onValueChange={(doctorId) =>
+										setForm((current) => ({
+											...current,
+											doctorId,
+										}))
+									}
 								>
-									<SelectValue placeholder="Select a doctor" />
-								</SelectTrigger>
-								<SelectContent>
-									{doctors
-										.filter(
-											(doctor) =>
-												doctor.id,
-										)
-										.map((doctor) => (
-											<SelectItem
-												key={
-													doctor.id
-												}
-												value={
-													doctor.id!
-												}
-											>
-												{getDoctorName(
-													doctor,
-												)}
-												{doctor.specialty
-													? ` · ${doctor.specialty}`
-													: ""}
-											</SelectItem>
-										))}
-								</SelectContent>
-							</Select>
-						</div>
-						<ScheduleFields
-							form={form}
-							setForm={setForm}
-							prefix="schedule"
-						/>
-						<div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
-							<label className="flex items-center gap-2 text-sm text-ink">
-								<input
-									type="checkbox"
-									checked={form.isAvailable}
-									onChange={(event) =>
-										setForm(
-											(
-												current,
-											) => ({
-												...current,
-												isAvailable:
-													event
+									<SelectTrigger
+										id="schedule-doctor"
+										className="w-full hover:border-brand focus-visible:border-brand focus-visible:ring-brand/30"
+									>
+										<SelectValue placeholder="Select a doctor" />
+									</SelectTrigger>
+									<SelectContent>
+										{doctors
+											.filter(
+												(doctor) =>
+													doctor.id,
+											)
+											.map((doctor) => (
+												<SelectItem
+													key={
+														doctor.id
+													}
+													value={
+														doctor.id!
+													}
+												>
+													{getDoctorName(
+														doctor,
+													)}
+													{doctor.specialty
+														? ` · ${doctor.specialty}`
+														: ""}
+												</SelectItem>
+											))}
+									</SelectContent>
+								</Select>
+							</div>
+							<ScheduleFields
+								form={form}
+								setForm={setForm}
+								prefix="schedule"
+							/>
+							<div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-line pt-4">
+								<label className="flex items-center gap-2 text-sm text-ink">
+									<input
+										type="checkbox"
+										checked={form.isAvailable}
+										onChange={(event) =>
+											setForm(
+												(
+													current,
+												) => ({
+													...current,
+													isAvailable:
+														event
+															.target
+															.checked,
+												}),
+											)
+										}
+									/>
+									Available for booking
+								</label>
+								<label className="flex items-center gap-2 text-sm text-ink">
+									<input
+										type="checkbox"
+										checked={form.isActive}
+										onChange={(event) =>
+											setForm(
+												(
+													current,
+												) => ({
+													...current,
+													isActive: event
 														.target
 														.checked,
-											}),
-										)
-									}
-								/>
-								Available for booking
-							</label>
-							<label className="flex items-center gap-2 text-sm text-ink">
-								<input
-									type="checkbox"
-									checked={form.isActive}
-									onChange={(event) =>
-										setForm(
-											(
-												current,
-											) => ({
-												...current,
-												isActive: event
-													.target
-													.checked,
-											}),
-										)
-									}
-								/>
-								Active schedule
-							</label>
+												}),
+											)
+										}
+									/>
+									Active schedule
+								</label>
+							</div>
 						</div>
 
 						<DialogFooter>

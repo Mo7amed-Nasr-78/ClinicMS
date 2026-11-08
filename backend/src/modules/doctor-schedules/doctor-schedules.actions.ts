@@ -1,5 +1,4 @@
-import { db, type PrismaTransaction } from "../../prisma/db.ts";
-import { Temporal } from "temporal-polyfill";
+import { db, type PrismaTransaction } from "../../../prisma/db.ts";
 import type { CreateDoctorScheduleDto } from "./dto/create-doctor-schedule.dto.ts";
 import type { UpdateDoctorScheduleDto } from "./dto/update-doctor-schedule.dto.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";

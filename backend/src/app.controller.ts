@@ -1,5 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import { db } from "./prisma/db";
+import { db } from "../prisma/db.ts";
 
 @Controller()
 export class AppController {

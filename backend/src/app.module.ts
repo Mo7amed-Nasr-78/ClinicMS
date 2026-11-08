@@ -14,7 +14,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { ReceptionistsModule } from "./modules/receptionists/receptionists.module";
 import { BillsModule } from "./modules/bills/bills.module";
 import { VisitTypesModule } from "./modules/visit-types/visit-types.module";
-import { PrismaLifecycle } from "./prisma/db";
+import { PrismaLifecycle } from "../prisma/db.ts";
 
 @Module({
 	imports: [

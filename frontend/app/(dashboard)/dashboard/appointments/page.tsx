@@ -112,11 +112,11 @@ export default function AppointmentsPage() {
 			patientId: appointment.patientId,
 			visitTypeId: appointment.visitTypeId ?? "",
 			appointmentDate: toDateInput(appointment.appointmentDate),
-			startTime: toTimeInput(appointment.startTime),
-			endTime: toTimeInput(appointment.endTime),
+			startTime: toTimeInput(appointment.startAt),
+			endTime: toTimeInput(appointment.endAt),
 			status: appointment.status,
-			reason: appointment.reason,
-			notes: appointment.notes,
+			reason: appointment.reason ?? "",
+			notes: appointment.notes ?? "",
 		});
 	};
 

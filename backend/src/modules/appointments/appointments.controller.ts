@@ -18,6 +18,7 @@ import type { AuthenticatedRequest } from "../../guards/authGuard";
 import { PermissionGuard } from "../../authorization/guards/permission.guard.ts";
 import { RequirePermissions } from "../../authorization/decorators/require-permissions.decorator.ts";
 import { Permission } from "../../authorization/enums/permission.enum.ts";
+import { CancelAppointmentDto } from "./DTOs/cancelAppointment.dto.ts";
 import { CreateAppointmentDto } from "./DTOs/createAppointment.dto";
 import { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto";
 import { AppointmentsService } from "./appointments.service";
@@ -83,6 +84,33 @@ export class AppointmentsController {
 			request.user.sub,
 			appointmentId,
 			input,
+		);
+	}
+
+	@Patch(":appointmentId/complete")
+	@RequirePermissions(Permission.COMPLETE_APPOINTMENTS)
+	complete(
+		@Req() request: AuthenticatedRequest,
+		@Param("appointmentId", ParseUUIDPipe) appointmentId: string,
+	) {
+		return this.appointmentsService.complete(
+			request.user.sub,
+			request.user.role,
+			appointmentId,
+		);
+	}
+
+	@Patch(":appointmentId/cancel")
+	@RequirePermissions(Permission.UPDATE_APPOINTMENTS)
+	cancel(
+		@Req() request: AuthenticatedRequest,
+		@Param("appointmentId", ParseUUIDPipe) appointmentId: string,
+		@Body() input: CancelAppointmentDto,
+	) {
+		return this.appointmentsService.cancel(
+			request.user.sub,
+			appointmentId,
+			input.cancelReason,
 		);
 	}
 

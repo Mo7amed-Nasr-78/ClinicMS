@@ -1,4 +1,4 @@
-import { db } from "../../prisma/db.ts";
+import { db } from "../../../prisma/db.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 
 export { db };

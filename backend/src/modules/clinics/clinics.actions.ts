@@ -1,5 +1,7 @@
-import { db } from "../../prisma/db.ts";
-import { Status } from "../../prisma/enums.ts";
+import { db } from "../../../prisma/db.ts";
+import { buildDoctorWhere } from "../doctors/doctor-filters.ts";
+import type { DoctorFilters } from "../doctors/doctor-filters.ts";
+import { Status } from "../../../prisma/enums.ts";
 import type { CreateClinicDto } from "./DTOs/createClinic.dto.ts";
 import type { UpdateClinicDto } from "./DTOs/updateClinic.dto.ts";
 
@@ -138,11 +140,13 @@ export async function findDoctorsByClinicId(
 	clinicId: string,
 	page = 1,
 	limit = 20,
+	filters: DoctorFilters = {},
 ) {
 	const pagination = normalizePagination(page, limit);
+	const where = buildDoctorWhere(clinicId, filters);
 	const [doctors, doctorCount] = await Promise.all([
 		db.doctor.findMany({
-			where: { clinicId },
+			where,
 			select: {
 				id: true,
 				specialty: true,
@@ -170,7 +174,7 @@ export async function findDoctorsByClinicId(
 			skip: pagination.offset,
 			take: pagination.limit,
 		}),
-		db.doctor.count({ where: { clinicId } }),
+		db.doctor.count({ where }),
 	]);
 
 	return {
@@ -224,7 +228,7 @@ export function createClinic(ownerId: string, input: CreateClinicDto) {
 			address: input.address,
 			logo: input.logo ?? "",
 			ownerId: ownerId as ClinicId,
-			status: Status.ACTIVE,
+			status: Status.active,
 		},
 		select: clinicSelect,
 	});

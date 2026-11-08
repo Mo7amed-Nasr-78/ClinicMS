@@ -68,6 +68,17 @@ export type ClinicDoctorsResponse = {
 	};
 };
 
+export type DoctorFilters = {
+	specialty?: string;
+	licenseNumber?: string;
+	bio?: string;
+	consultationDuration?: number;
+	consultationFee?: number;
+	status?: string;
+};
+
+export type ClinicDoctorsQueryParams = DoctorFilters;
+
 export async function createDoctor(
 	payload: CreateDoctorPayload,
 ): Promise<Doctor> {
@@ -96,18 +107,23 @@ export async function getClinicDoctors(
 	page = 1,
 	limit = 20,
 	signal?: AbortSignal,
+	queryParams: ClinicDoctorsQueryParams = {},
 ): Promise<ClinicDoctorsResponse> {
 	const { data } = await httpClient.get<ClinicDoctorsResponse>(
 		`/clinics/${clinicId}/doctors`,
-		{ params: { page, limit }, signal },
+		{ params: { page, limit, ...queryParams }, signal },
 	);
 	return data;
 }
 
 export async function getDoctorOptions(
 	signal?: AbortSignal,
+	queryParams: ClinicDoctorsQueryParams = {},
 ): Promise<Doctor[]> {
-	const { data } = await httpClient.get<Doctor[]>("/doctors", { signal });
+	const { data } = await httpClient.get<Doctor[]>("/doctors", {
+		params: queryParams,
+		signal,
+	});
 	return data;
 }
 

@@ -11,6 +11,9 @@ export type Patient = {
 	email: string;
 	address: string;
 	emergencyContact: string;
+	relativeName: string | null;
+	relativePhone: string | null;
+	relativeRelation: string | null;
 	status: string;
 	allergies: string;
 	clinicId: string;
@@ -40,7 +43,11 @@ export type CreatePatientPayload = Pick<
 	| "address"
 	| "emergencyContact"
 	| "allergies"
->;
+> & {
+	relativeName?: string;
+	relativePhone?: string;
+	relativeRelation?: string;
+};
 
 export type UpdatePatientPayload = Partial<CreatePatientPayload> & {
 	status?: Patient["status"];

@@ -102,10 +102,10 @@ export default function Patients() {
 	const { mutate: deletePatient, isPending: isDeleting } =
 		useDeletePatient();
 	const {
-		doctors,
+			doctors: activeDoctors,
 		loading: loadingDoctors,
 		error: doctorsError,
-	} = useDoctorOptions();
+	} = useDoctorOptions({ status: "active" });
 	const { mutate: submitAppointment, isPending: isCreatingAppointment } =
 		useCreateAppointment();
 	const {
@@ -183,9 +183,6 @@ export default function Patients() {
 			scroll: false,
 		});
 	}, [router]);
-	const activeDoctors = doctors.filter(
-		(doctor) => doctor.status?.toLowerCase() !== "inactive",
-	);
 	const isSaving = isCreating || isUpdating;
 	const normalizedSearch = search.trim().toLowerCase();
 	const visiblePatients = patients.filter((patient) => {
@@ -412,16 +409,8 @@ export default function Patients() {
 					title="Patients"
 				/>
 				<main className="mx-auto w-full pb-10">
-					<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
-						<div>
-							<p className="mt-2 text-sm text-ink-muted">
-								{pagination.total} registered{" "}
-								{pagination.total === 1
-									? "patient"
-									: "patients"}
-							</p>
-						</div>
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center ml-auto">
+					<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end">
+						<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 							<div className="relative w-full sm:w-72">
 								<Search
 									className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
@@ -648,7 +637,7 @@ export default function Patients() {
 				}}
 			>
 				<DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-lg sm:max-w-2xl">
-					<DialogHeader className="shrink-0 border-b border-line px-6 py-5 text-left">
+					<DialogHeader className="shrink-0 border-b border-line px-6 pb-3 text-left">
 						<DialogTitle className="text-2xl font-semibold text-ink">
 							{selectedPatient
 								? "Edit patient"
@@ -951,7 +940,7 @@ export default function Patients() {
 				}}
 			>
 				<DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-lg sm:max-w-2xl">
-					<DialogHeader className="shrink-0 border-b border-line px-6 py-5 text-left">
+					<DialogHeader className="shrink-0 border-b border-line px-6 pb-3 text-left">
 						<DialogTitle className="text-2xl font-semibold text-ink">
 							Add an appointment
 						</DialogTitle>

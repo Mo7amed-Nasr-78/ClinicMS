@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
-import { db } from "../../prisma/db.ts";
-import { Roles, Status } from "../../prisma/enums.ts";
+import { db } from "../../../prisma/db.ts";
+import { Roles, Status } from "../../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateReceptionistDto } from "./DTOs/createReceptionist.dto.ts";
 import type { UpdateReceptionistDto } from "./DTOs/updateReceptionist.dto.ts";
@@ -94,8 +94,8 @@ export async function createReceptionist(
 				email: input.email,
 				password,
 				phone: input.phone ?? null,
-				role: Roles.RECEPTIONIST,
-				status: Status.ACTIVE,
+				role: Roles.receptionist,
+				status: Status.active,
 			},
 			select: { id: true },
 		});
@@ -104,7 +104,7 @@ export async function createReceptionist(
 			data: {
 				userId: user.id,
 				clinicId,
-				status: Status.ACTIVE,
+				status: Status.active,
 			},
 			select: { id: true },
 		});
@@ -159,12 +159,12 @@ export async function deactivateReceptionist(
 	await db.$transaction(async (transaction) => {
 		await transaction.user.update({
 			where: { id: userId as UserId },
-			data: { status: Status.INACTIVE },
+			data: { status: Status.inActive },
 		});
 
 		await transaction.receptionist.update({
 			where: { id: receptionistId as ReceptionistId, clinicId },
-			data: { status: Status.INACTIVE },
+			data: { status: Status.inActive },
 		});
 	});
 

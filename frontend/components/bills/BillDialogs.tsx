@@ -183,7 +183,7 @@ export function BillDialogs({
 															10,
 														)}{" "}
 														·{" "}
-														{appointment.startTime}
+														{appointment.startAt}
 													</SelectItem>
 												),
 											)}

@@ -6,9 +6,9 @@ import {
 } from "@nestjs/common";
 import { Temporal } from "temporal-polyfill";
 
-import { db } from "../../prisma/db.ts";
-import type { PrismaTransaction } from "../../prisma/db.ts";
-import { appointment_Status } from "../../prisma/enums.ts";
+import { db } from "../../../prisma/db.ts";
+import type { PrismaTransaction } from "../../../prisma/db.ts";
+import { appointment_Status } from "../../../prisma/enums.ts";
 import { Role } from "../../authorization/enums/role.enum.ts";
 import { findClinicIdForUser } from "../clinics/clinics.actions";
 import type { ClinicId } from "../clinics/clinics.actions";
@@ -20,9 +20,12 @@ import {
 	isAppointmentBlocking,
 	isAppointmentSlotAvailable,
 	parseTimeMinutes,
+	scheduleTimeRangesOverlap,
 } from "../doctors/availability.ts";
 import {
 	createAppointment,
+	cancelAppointmentById,
+	completeAppointmentById,
 	deleteAppointmentById,
 	findAppointmentById,
 	findAppointmentsByClinicId,
@@ -31,6 +34,7 @@ import {
 	findDoctorInClinic,
 	findDefaultVisitTypeInClinic,
 	findPatientInClinic,
+	findPatientAppointmentsForDate,
 	findVisitTypeInClinic,
 	updateAppointmentById,
 } from "./appointments.actions";
@@ -168,19 +172,27 @@ export class AppointmentsService {
 		}
 		return db.$transaction(async (tx) => {
 			await this.lockDoctorSchedule(tx, input.doctorId);
-			const [schedules, appointments] = await Promise.all([
-				listDoctorSchedules(
-					clinicId,
-					input.doctorId as DoctorId,
-					tx,
-				),
-				findDoctorAppointmentsForDate(
-					clinicId,
-					input.doctorId,
-					date,
-					tx,
-				),
-			]);
+			await this.lockPatientSchedule(tx, clinicId, input.patientId);
+			const [schedules, appointments, patientAppointments] =
+				await Promise.all([
+					listDoctorSchedules(
+						clinicId,
+						input.doctorId as DoctorId,
+						tx,
+					),
+					findDoctorAppointmentsForDate(
+						clinicId,
+						input.doctorId,
+						date,
+						tx,
+					),
+					findPatientAppointmentsForDate(
+						clinicId,
+						input.patientId,
+						date,
+						tx,
+					),
+				]);
 
 			if (
 				this.hasPatientAppointmentOnDate(
@@ -190,6 +202,23 @@ export class AppointmentsService {
 			) {
 				throw new ConflictException(
 					"Patient already has an appointment with this doctor on this date",
+				);
+			}
+
+			if (
+				patientAppointments.some(
+					(appointment) =>
+						appointment.doctorId !== input.doctorId &&
+						scheduleTimeRangesOverlap(
+							startTime,
+							endTime,
+							appointment.startAt,
+							appointment.endAt,
+						),
+				)
+			) {
+				throw new ConflictException(
+					"Patient already has an overlapping appointment with another doctor on this date",
 				);
 			}
 
@@ -253,7 +282,12 @@ export class AppointmentsService {
 			input.patientId ?? appointment.patientId,
 		);
 		if (!schedulingFieldsChanged) {
-			return updateAppointmentById(clinicId, appointmentId, input);
+			return updateAppointmentById(
+				clinicId,
+				appointmentId,
+				input,
+				ownerId,
+			);
 		}
 
 		const visitTypeId = input.visitTypeId ?? appointment.visitTypeId;
@@ -332,9 +366,88 @@ export class AppointmentsService {
 				clinicId,
 				appointmentId,
 				input,
+				ownerId,
 				tx,
 			);
 		});
+	}
+
+	async cancel(
+		ownerId: string,
+		appointmentId: string,
+		cancelReason: string,
+	) {
+		const clinicId = await this.getClinicId(ownerId);
+		const appointment = await findAppointmentById(
+			clinicId,
+			appointmentId,
+		);
+		if (!appointment) {
+			throw new NotFoundException("Appointment not found");
+		}
+		const nonCancellableStatuses: string[] = [
+			appointment_Status.completed,
+			appointment_Status.cancelled,
+			appointment_Status.noShow,
+			appointment_Status.rescheduled,
+		];
+		if (nonCancellableStatuses.includes(appointment.status)) {
+			throw new ConflictException(
+				"Appointment can no longer be cancelled",
+			);
+		}
+
+		const normalizedReason = cancelReason.trim();
+		if (!normalizedReason) {
+			throw new BadRequestException("Cancellation reason is required");
+		}
+
+		return cancelAppointmentById(
+			clinicId,
+			appointmentId,
+			normalizedReason,
+			ownerId,
+		);
+	}
+
+	async complete(
+		ownerId: string,
+		role: string,
+		appointmentId: string,
+	) {
+		const clinicId = await this.getClinicId(ownerId);
+		const appointment = await findAppointmentById(
+			clinicId,
+			appointmentId,
+		);
+		if (!appointment) {
+			throw new NotFoundException("Appointment not found");
+		}
+		if (role === Role.DOCTOR) {
+			const doctorId = await findDoctorIdByUserId(ownerId, clinicId);
+			if (!doctorId || appointment.doctorId !== doctorId) {
+				throw new NotFoundException("Appointment not found");
+			}
+		}
+
+		const result = await completeAppointmentById(
+			clinicId,
+			appointmentId,
+		);
+		if (result.count === 0) {
+			throw new ConflictException(
+				"Only in-progress appointments can be completed",
+			);
+		}
+
+		const completedAppointment = await findAppointmentById(
+			clinicId,
+			appointmentId,
+		);
+		if (!completedAppointment) {
+			throw new NotFoundException("Appointment not found");
+		}
+		return completedAppointment;
 	}
 
 	async remove(ownerId: string, appointmentId: string) {
@@ -393,6 +506,16 @@ export class AppointmentsService {
 	) {
 		await transaction.$queryRaw`
 			SELECT pg_advisory_xact_lock(hashtextextended(${doctorId}, 0)) IS NULL AS locked
+		`;
+	}
+
+	private async lockPatientSchedule(
+		transaction: PrismaTransaction,
+		clinicId: ClinicId,
+		patientId: string,
+	) {
+		await transaction.$queryRaw`
+			SELECT pg_advisory_xact_lock(hashtextextended(${`${clinicId}:${patientId}`}, 1)) IS NULL AS locked
 		`;
 	}
 

@@ -26,15 +26,20 @@ import {
 	listDoctorSchedules,
 } from "../doctor-schedules/doctor-schedules.actions.ts";
 import { calculateAvailabilitySlots, getUtcDayBounds } from "./availability.ts";
+import { parseDoctorFilters } from "./doctor-filters";
+import type { DoctorFiltersQuery } from "./doctor-filters";
 import type { CreateDoctorDto } from "./DTOs/createDoctor.dto";
 import type { UpdateDoctorDto } from "./DTOs/updateDoctor.dto";
 
 @Injectable()
 export class DoctorsService {
-	async findAll(userId: string) {
+	async findAll(userId: string, filters: DoctorFiltersQuery = {}) {
 		const clinic = await findClinicIdForUser(userId);
 		if (!clinic) throw new NotFoundException("Clinic not found");
-		return findAllDoctors(clinic.id as ClinicId);
+		return findAllDoctors(
+			clinic.id as ClinicId,
+			parseDoctorFilters(filters),
+		);
 	}
 
 	async getAvailability(

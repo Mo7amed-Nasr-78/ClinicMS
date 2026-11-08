@@ -21,6 +21,7 @@ import { Permission } from "../../authorization/enums/permission.enum.ts";
 import { CreateDoctorDto } from "./DTOs/createDoctor.dto";
 import { DoctorAvailabilityQueryDto } from "./DTOs/doctorAvailabilityQuery.dto";
 import { UpdateDoctorDto } from "./DTOs/updateDoctor.dto";
+import type { DoctorFiltersQuery } from "./doctor-filters";
 import { DoctorsService } from "./doctors.service";
 
 @Controller("doctors")
@@ -33,8 +34,11 @@ export class DoctorsController {
 
 	@Get()
 	@RequirePermissions(Permission.VIEW_DOCTORS)
-	findAll(@Req() request: AuthenticatedRequest) {
-		return this.doctorsService.findAll(request.user.sub);
+	findAll(
+		@Req() request: AuthenticatedRequest,
+		@Query() filters: DoctorFiltersQuery,
+	) {
+		return this.doctorsService.findAll(request.user.sub, filters);
 	}
 
 	@Get(":id/availability")

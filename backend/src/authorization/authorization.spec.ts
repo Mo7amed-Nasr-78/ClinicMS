@@ -54,6 +54,7 @@ test("role permission mapping contains the expected capabilities", async (t) => 
 			Permission.VIEW_PATIENT_DETAILS,
 			Permission.VIEW_APPOINTMENTS,
 			Permission.VIEW_APPOINTMENT_DETAILS,
+			Permission.COMPLETE_APPOINTMENTS,
 			Permission.VIEW_DOCTOR_SCHEDULES,
 			Permission.VIEW_DOCTOR_SCHEDULE_DETAILS,
 			Permission.VIEW_VISIT_TYPES,
@@ -89,11 +90,13 @@ test("role permission mapping contains the expected capabilities", async (t) => 
 			Permission.CREATE_APPOINTMENTS,
 			Permission.UPDATE_APPOINTMENTS,
 			Permission.DELETE_APPOINTMENTS,
+			Permission.COMPLETE_APPOINTMENTS,
 			Permission.CREATE_BILLS,
 			Permission.VIEW_BILLS,
 			Permission.VIEW_BILL_DETAILS,
 			Permission.UPDATE_BILLS,
 			Permission.DELETE_BILLS,
+			Permission.CREATE_PAYMENTS,
 		]);
 	});
 });

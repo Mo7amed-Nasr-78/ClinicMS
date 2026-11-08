@@ -1,7 +1,8 @@
-import { db } from "../../prisma/db.ts";
+import { db } from "../../../prisma/db.ts";
 import type { CreatePatientDto } from "./DTOs/createPatient.dto.ts";
 import type { UpdatePatientDto } from "./DTOs/updatePatient.dto.ts";
-import { Patient_Status } from "../../prisma/enums.ts";
+import { Patient_Status } from "../../../prisma/enums.ts";
+import type { PatientStatus } from "../../../prisma/enums.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 
 const patientSelect = {
@@ -15,6 +16,9 @@ const patientSelect = {
 	email: true,
 	address: true,
 	emergencyContact: true,
+	relativeName: true,
+	relativePhone: true,
+	relativeRelation: true,
 	status: true,
 	allergies: true,
 	clinicId: true,
@@ -53,7 +57,7 @@ export async function findPatientsByClinicId(
 	page = 1,
 	limit = 20,
 	doctorId?: DoctorId,
-	status?: string,
+	status?: PatientStatus,
 ) {
 	const pagination = normalizePagination(page, limit);
 	const filters = {
@@ -215,7 +219,10 @@ export function createPatient(input: CreatePatientDto, clinicId: ClinicId) {
 				email: input.email ?? null,
 				address: input.address,
 				emergencyContact: input.emergencyContact ?? "",
-				status: Patient_Status.NEW,
+				relativeName: input.relativeName ?? null,
+				relativePhone: input.relativePhone ?? null,
+				relativeRelation: input.relativeRelation ?? null,
+				status: Patient_Status.new,
 				allergies: input.allergies ?? "",
 				clinicId,
 			},

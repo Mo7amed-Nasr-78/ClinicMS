@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { useSession } from "next-auth/react";
 import {
 	ArrowRight,
 	Ban,
@@ -16,12 +18,29 @@ import {
 	UserCheck,
 	UserX,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+	useCancelAppointment,
+	useAppointments,
+	useUpdateAppointment,
+} from "@/api/hooks/Appointments";
+import { getApiErrorMessage } from "@/api/services/clinicService";
 import { Badge } from "@/components/ui/badge";
-import { useAppointments } from "@/api/hooks/Appointments";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
 	doctorName,
 	patientName,
 } from "@/components/appointments/appointment-utils";
+import { hasPermission } from "@/lib/permissions";
 
 const APPOINTMENT_STATUS_META = {
 	scheduled: {
@@ -92,16 +111,129 @@ function formatQueueTime(value) {
 	}).format(date);
 }
 
+function hasAppointmentEnded(appointment, now) {
+	const appointmentDate = appointment.appointmentDate.slice(0, 10);
+	if (
+		!/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate) ||
+		!/^\d{2}:\d{2}$/.test(appointment.endAt)
+	) {
+		return false;
+	}
+
+	const endTime = new Date(
+		`${appointmentDate}T${appointment.endAt}:00`,
+	).getTime();
+	return Number.isFinite(endTime) && now >= endTime;
+}
+
+function normalizeStatus(status = "") {
+	return status.toLowerCase().replace(/[_\s-]/g, "");
+}
+
 export function TodayQueue() {
 	const today = format(new Date(), "yyyy-MM-dd");
+	const [now, setNow] = useState(null);
+	const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+	const [cancelReason, setCancelReason] = useState("");
+	const { data: session } = useSession();
+	const canUpdateAppointments = hasPermission(
+		session?.user?.permissions,
+		"update:appointments",
+	);
+	const {
+		mutate: updateAppointment,
+		isPending: isUpdatingAppointment,
+		variables: updateVariables,
+	} = useUpdateAppointment();
+	const {
+		mutate: cancelAppointment,
+		isPending: isCancellingAppointment,
+	} = useCancelAppointment();
 	const { appointments, loading, error } = useAppointments(1, 100, {
 		appointmentDate: today,
 	});
+	const selectedAppointment = appointments.find(
+		(appointment) => appointment.id === selectedAppointmentId,
+	);
 	const todaysAppointments = [...appointments].sort((first, second) =>
-		first.startTime.localeCompare(second.startTime),
+		first.startAt.localeCompare(second.startAt),
 	);
 
+	useEffect(() => {
+		const updateCurrentTime = () => setNow(Date.now());
+		updateCurrentTime();
+		const interval = window.setInterval(updateCurrentTime, 15_000);
+		return () => window.clearInterval(interval);
+	}, []);
+
+	const markNoShow = (appointment) => {
+		updateAppointment(
+			{
+				appointmentId: appointment.id,
+				payload: { status: "noShow" },
+			},
+			{
+				onSuccess: () =>
+					toast.success("Appointment marked as no-show."),
+				onError: (updateError) =>
+					toast.error(getApiErrorMessage(updateError)),
+			},
+		);
+	};
+
+	const updateStatus = (status) => {
+		if (!selectedAppointment) return;
+		updateAppointment(
+			{
+				appointmentId: selectedAppointment.id,
+				payload: { status },
+			},
+			{
+				onSuccess: () =>
+					toast.success(
+						`Appointment status updated to ${status === "checkedIn" ? "checked in" : "in progress"}.`,
+					),
+				onError: (updateError) =>
+					toast.error(getApiErrorMessage(updateError)),
+			},
+		);
+	};
+
+	const submitCancellation = (event) => {
+		event.preventDefault();
+		if (!selectedAppointment) return;
+		const reason = cancelReason.trim();
+		if (!reason) {
+			toast.error("Enter a reason for cancelling this appointment.");
+			return;
+		}
+
+		cancelAppointment(
+			{
+				appointmentId: selectedAppointment.id,
+				cancelReason: reason,
+			},
+			{
+				onSuccess: () => {
+					setCancelDialogOpen(false);
+					setCancelReason("");
+					toast.success("Appointment cancelled.");
+				},
+				onError: (cancelError) =>
+					toast.error(getApiErrorMessage(cancelError)),
+			},
+		);
+	};
+
+	const selectedStatus = normalizeStatus(selectedAppointment?.status);
+	const canCancelAppointment =
+		!["completed", "cancelled", "noshow", "rescheduled"].includes(
+			selectedStatus,
+		);
+
 	return (
+		<>
 		<section className="flex h-full min-h-72 flex-col overflow-hidden rounded-2xl border border-line bg-surface">
 			<header className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
 				<div className="flex min-w-0 items-center gap-3">
@@ -202,61 +334,101 @@ export function TodayQueue() {
 							return (
 								<li
 									key={appointment.id}
-									className="flex items-center gap-3 py-3.5 sm:gap-4"
+									className="flex flex-wrap items-center gap-3 py-3.5 sm:gap-4"
 								>
-									<div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-2 px-2 py-2 text-center">
-										<Clock3
-											className="mb-1 size-3.5 text-brand"
-											aria-hidden="true"
-										/>
-										<time className="font-mono text-xs font-semibold tabular-nums text-ink">
-											{formatQueueTime(
-												appointment.startAt,
-											)}
-										</time>
-									</div>
-									<div className="min-w-0 flex-1">
-										<p className="truncate text-sm font-semibold text-ink">
-											{patientName(
-												appointment.patient,
-											)}
-										</p>
-										<div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
-											<span className="inline-flex min-w-0 items-center gap-1.5">
-												<Stethoscope
-													className="size-3.5 shrink-0"
-													aria-hidden="true"
-												/>
-												<span className="truncate">
-													{doctorName(
-														appointment.doctor,
-													)}
-												</span>
-											</span>
-											{appointment.reason && (
+									<button
+										type="button"
+										aria-haspopup="dialog"
+										aria-label={`View appointment for ${patientName(appointment.patient)}`}
+										onClick={() =>
+											setSelectedAppointmentId(
+												appointment.id,
+											)
+										}
+										className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-brand sm:gap-4"
+									>
+										<div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-surface-2 px-2 py-2 text-center">
+											<Clock3
+												className="mb-1 size-3.5 text-brand"
+												aria-hidden="true"
+											/>
+											<time className="font-mono text-xs font-semibold tabular-nums text-ink">
+												{formatQueueTime(
+													appointment.startAt,
+												)}
+											</time>
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-sm font-semibold text-ink">
+												{patientName(
+													appointment.patient,
+												)}
+											</p>
+											<div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
 												<span className="inline-flex min-w-0 items-center gap-1.5">
-													<FileText
+													<Stethoscope
 														className="size-3.5 shrink-0"
 														aria-hidden="true"
 													/>
 													<span className="truncate">
-														{appointment.reason}
+														{doctorName(
+															appointment.doctor,
+														)}
 													</span>
 												</span>
-											)}
+												{appointment.reason && (
+													<span className="inline-flex min-w-0 items-center gap-1.5">
+														<FileText
+															className="size-3.5 shrink-0"
+															aria-hidden="true"
+														/>
+														<span className="truncate">
+															{appointment.reason}
+														</span>
+													</span>
+												)}
+											</div>
 										</div>
-									</div>
-									<Badge
-										variant="outline"
-										className={`h-7 shrink-0 gap-1.5 px-2 text-[0.7rem] ${status.className}`}
-									>
-										<StatusIcon
-											aria-hidden="true"
-										/>
-										<span className="hidden sm:inline">
-											{status.label}
-										</span>
-									</Badge>
+										<Badge
+											variant="outline"
+											className={`h-7 shrink-0 gap-1.5 px-2 text-[0.7rem] ${status.className}`}
+										>
+											<StatusIcon aria-hidden="true" />
+											<span className="hidden sm:inline">
+												{status.label}
+											</span>
+										</Badge>
+									</button>
+									{canUpdateAppointments &&
+										now !== null &&
+										hasAppointmentEnded(appointment, now) &&
+										["scheduled", "confirmed"].includes(
+											appointment.status
+												.toLowerCase()
+												.replace(/[_\s-]/g, ""),
+										) && (
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												aria-label={`Mark ${patientName(appointment.patient)}'s appointment as no-show`}
+												disabled={
+													isUpdatingAppointment &&
+													updateVariables?.appointmentId ===
+														appointment.id
+												}
+												onClick={() =>
+													markNoShow(appointment)
+												}
+											>
+												<UserX aria-hidden="true" />
+												{isUpdatingAppointment &&
+												updateVariables?.appointmentId ===
+													appointment.id
+													? "Updating..."
+													: "Mark no-show"}
+											</Button>
+										)}
 								</li>
 							);
 						})}
@@ -278,5 +450,204 @@ export function TodayQueue() {
 				</footer>
 			)}
 		</section>
+		
+		<Dialog
+			open={Boolean(selectedAppointment) && !cancelDialogOpen}
+			onOpenChange={(open) => {
+				if (!open) setSelectedAppointmentId(null);
+			}}
+		>
+			{selectedAppointment && (
+				<DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Appointment details</DialogTitle>
+						<DialogDescription>
+							Review the appointment and update its status.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4 sm:grid-cols-2">
+						<div>
+							<p className="text-xs text-ink-muted">Patient</p>
+							<p className="mt-1 font-medium text-ink">
+								{patientName(selectedAppointment.patient)}
+							</p>
+							{selectedAppointment.patient.email && (
+								<p className="mt-0.5 break-all text-sm text-ink-muted">
+									{selectedAppointment.patient.email}
+								</p>
+							)}
+						</div>
+						<div>
+							<p className="text-xs text-ink-muted">Doctor</p>
+							<p className="mt-1 font-medium text-ink">
+								{doctorName(selectedAppointment.doctor)}
+							</p>
+						</div>
+						<div>
+							<p className="text-xs text-ink-muted">Date</p>
+							<p className="mt-1 font-medium text-ink">
+								{format(
+									new Date(
+										`${selectedAppointment.appointmentDate.slice(0, 10)}T00:00:00`,
+									),
+									"MMMM d, yyyy",
+								)}
+							</p>
+						</div>
+						<div>
+							<p className="text-xs text-ink-muted">Time</p>
+							<p className="mt-1 font-medium text-ink">
+								{formatQueueTime(selectedAppointment.startAt)}
+								{" - "}
+								{formatQueueTime(selectedAppointment.endAt)}
+							</p>
+						</div>
+						<div>
+							<p className="text-xs text-ink-muted">Status</p>
+							<p className="mt-1 font-medium text-ink">
+								{getStatusMeta(selectedAppointment.status).label}
+							</p>
+						</div>
+						{selectedAppointment.reason && (
+							<div className="sm:col-span-2">
+								<p className="text-xs text-ink-muted">Reason</p>
+								<p className="mt-1 text-ink">
+									{selectedAppointment.reason}
+								</p>
+							</div>
+						)}
+						{selectedAppointment.notes && (
+							<div className="sm:col-span-2">
+								<p className="text-xs text-ink-muted">Notes</p>
+								<p className="mt-1 whitespace-pre-wrap text-ink">
+									{selectedAppointment.notes}
+								</p>
+							</div>
+						)}
+						{selectedAppointment.cancelReason && (
+							<div className="sm:col-span-2">
+								<p className="text-xs text-ink-muted">
+									Cancellation reason
+								</p>
+								<p className="mt-1 text-ink">
+									{selectedAppointment.cancelReason}
+								</p>
+							</div>
+						)}
+					</div>
+					{canUpdateAppointments && (
+						<DialogFooter className="flex-wrap sm:justify-between">
+							<div className="flex flex-wrap gap-2">
+								{["scheduled", "confirmed"].includes(
+									selectedStatus,
+								) && (
+									<Button
+										type="button"
+										disabled={
+											isUpdatingAppointment &&
+											updateVariables?.appointmentId ===
+												selectedAppointment.id
+										}
+										onClick={() =>
+											updateStatus("checkedIn")
+										}
+									>
+										<UserCheck aria-hidden="true" />
+										Check in
+									</Button>
+								)}
+								{selectedStatus === "checkedin" && (
+									<Button
+										type="button"
+										disabled={
+											isUpdatingAppointment &&
+											updateVariables?.appointmentId ===
+												selectedAppointment.id
+										}
+										onClick={() =>
+											updateStatus("inProgress")
+										}
+									>
+										<Stethoscope aria-hidden="true" />
+										Start visit
+									</Button>
+								)}
+							</div>
+							{canCancelAppointment && (
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={() => {
+										setCancelReason("");
+										setCancelDialogOpen(true);
+									}}
+								>
+									<Ban aria-hidden="true" />
+									Cancel appointment
+								</Button>
+							)}
+						</DialogFooter>
+					)}
+				</DialogContent>
+			)}
+		</Dialog>
+		<Dialog
+			open={cancelDialogOpen}
+			onOpenChange={(open) => {
+				if (!isCancellingAppointment) setCancelDialogOpen(open);
+			}}
+		>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Cancel appointment?</DialogTitle>
+					<DialogDescription>
+						Enter a reason for cancelling this appointment. This
+						will be saved with the cancellation.
+					</DialogDescription>
+				</DialogHeader>
+				<form onSubmit={submitCancellation} className="space-y-4">
+					<div className="space-y-1.5">
+						<Label htmlFor="appointment-cancel-reason">
+							Cancellation reason
+						</Label>
+						<textarea
+							id="appointment-cancel-reason"
+							value={cancelReason}
+							onChange={(event) =>
+								setCancelReason(event.target.value)
+							}
+							maxLength={500}
+							rows={4}
+							required
+							disabled={isCancellingAppointment}
+							className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm text-ink outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+						/>
+					</div>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isCancellingAppointment}
+							onClick={() => setCancelDialogOpen(false)}
+						>
+							Keep appointment
+						</Button>
+						<Button
+							type="submit"
+							variant="destructive"
+							disabled={
+								isCancellingAppointment ||
+								!cancelReason.trim()
+							}
+						>
+							{isCancellingAppointment
+								? "Cancelling..."
+								: "Confirm cancellation"}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
+		</>
 	);
 }

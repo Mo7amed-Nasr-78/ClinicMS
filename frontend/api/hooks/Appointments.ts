@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/api/services/clinicService";
 import {
 	createAppointment,
+	cancelAppointment,
+	completeAppointment,
 	deleteAppointment,
 	getAppointments,
 	updateAppointment,
@@ -60,6 +62,37 @@ export function useUpdateAppointment() {
 			appointmentId: string;
 			payload: UpdateAppointmentPayload;
 		}) => updateAppointment(appointmentId, payload),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			queryClient.invalidateQueries({ queryKey: ["patients", "today"] });
+		},
+	});
+}
+
+export function useCancelAppointment() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			appointmentId,
+			cancelReason,
+		}: {
+			appointmentId: string;
+			cancelReason: string;
+		}) => cancelAppointment(appointmentId, cancelReason),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["appointments"] });
+			queryClient.invalidateQueries({ queryKey: ["patients", "today"] });
+		},
+	});
+}
+
+export function useCompleteAppointment() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (appointmentId: string) =>
+			completeAppointment(appointmentId),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["appointments"] });
 			queryClient.invalidateQueries({ queryKey: ["patients", "today"] });

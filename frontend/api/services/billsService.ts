@@ -1,6 +1,7 @@
 import { httpClient } from "@/api/httpClient";
 
 export type BillStatus = "unpaid" | "paid" | "cancelled";
+export type PaymentMethod = "cash" | "card" | "insurance" | "other";
 
 export type CreateBillPayload = {
 	patientId: string;
@@ -25,6 +26,7 @@ export type Bill = {
 	clinicId: string;
 	patientId: string;
 	appointmentId: string | null;
+	invoiceNumber: string;
 	amount: string;
 	description: string;
 	status: BillStatus;
@@ -57,6 +59,18 @@ export type BillsResponse = {
 		total: number;
 		totalPages: number;
 	};
+};
+
+export type BillPayment = {
+	id: string;
+	clinicId: string;
+	billId: string;
+	amount: string;
+	method: PaymentMethod;
+	receivedBy: string;
+	paidAt: string;
+	createdAt: string;
+	bill: BillWithRelations;
 };
 
 export async function getBills(
@@ -92,4 +106,15 @@ export async function updateBill(
 
 export async function deleteBill(billId: string): Promise<void> {
 	await httpClient.delete(`/bills/${billId}`);
+}
+
+export async function recordBillPayment(
+	billId: string,
+	method: PaymentMethod,
+): Promise<BillPayment> {
+	const { data } = await httpClient.post<BillPayment>(
+		`/bills/${billId}/payments`,
+		{ method },
+	);
+	return data;
 }

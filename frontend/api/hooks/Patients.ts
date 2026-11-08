@@ -34,6 +34,8 @@ export type PatientDetails = Patient & {
 	medicalRecords?: {
 		id: string;
 		diagnosis: string;
+		symptoms?: string | null;
+		examination?: string | null;
 		treatment: string;
 		notes: string;
 		createdAt: string;

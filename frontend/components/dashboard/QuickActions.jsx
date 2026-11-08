@@ -34,7 +34,7 @@ export function QuickActions() {
 					const Icon = action.icon;
 					const href =
 						action.label === "Add patient"
-							? "/dashboard/patients?action=create"
+							? "/dashboard/register-patient"
 							: action.label === "New appointment"
 								? "/dashboard/appointments?action=create"
 								: undefined;

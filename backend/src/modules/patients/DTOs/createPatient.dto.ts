@@ -8,7 +8,7 @@ import {
 	Matches,
 } from "class-validator";
 
-import { Gender, Patient_Status } from "../../../prisma/enums.ts";
+import { Gender } from "../../../../prisma/enums.ts";
 
 export class CreatePatientDto {
 	@IsNotEmpty()
@@ -44,6 +44,18 @@ export class CreatePatientDto {
 	@IsOptional()
 	@IsString()
 	emergencyContact?: string;
+
+	@IsOptional()
+	@IsString()
+	relativeName?: string;
+
+	@IsOptional()
+	@IsString()
+	relativePhone?: string;
+
+	@IsOptional()
+	@IsString()
+	relativeRelation?: string;
 
 	@IsOptional()
 	@IsString()

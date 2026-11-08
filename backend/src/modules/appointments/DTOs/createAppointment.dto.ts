@@ -9,7 +9,7 @@ import {
 import {
 	Appointment_Source,
 	appointment_Status,
-} from "../../../prisma/enums.ts";
+} from "../../../../prisma/enums.ts";
 
 export class CreateAppointmentDto {
 	@IsUUID()
@@ -35,12 +35,12 @@ export class CreateAppointmentDto {
 	@IsOptional()
 	@IsString()
 	@IsIn(Object.values(appointment_Status))
-	status?: string;
+	status?: (typeof appointment_Status)[keyof typeof appointment_Status];
 
 	@IsOptional()
 	@IsString()
 	@IsIn(Object.values(Appointment_Source))
-	source?: string;
+	source?: (typeof Appointment_Source)[keyof typeof Appointment_Source];
 
 	@IsOptional()
 	@IsString()

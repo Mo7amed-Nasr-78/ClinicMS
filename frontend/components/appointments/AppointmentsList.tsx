@@ -85,8 +85,8 @@ function getAppointmentColumns(
 			header: "Time",
 			cell: ({ row }) => (
 				<span className="whitespace-nowrap">
-					{formatTime(row.original.startTime)} –{" "}
-					{formatTime(row.original.endTime)}
+					{formatTime(row.original.startAt)} –{" "}
+					{formatTime(row.original.endAt)}
 				</span>
 			),
 		},
@@ -206,13 +206,13 @@ export function AppointmentsList({
 	return (
 		<main className="mx-auto w-full pb-10">
 			<header className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
-				<div>
+				{/* <div>
 					<p className="mt-2 text-sm text-ink-muted">
 						{pagination.total} appointment record
 						{pagination.total === 1 ? "" : "s"}
 					</p>
-				</div>
-				<div className="flex flex-col gap-2 sm:flex-row ml-auto">
+				</div> */}
+				<div className="flex flex-col gap-2 sm:flex-row">
 					<div className="relative w-full sm:w-72">
 						<Search
 							className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"

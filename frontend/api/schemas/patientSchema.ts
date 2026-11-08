@@ -21,4 +21,7 @@ export const patientSchema = z.object({
 	address: z.string(),
 	emergencyContact: z.string(),
 	allergies: z.string(),
+	relativeName: z.string().trim().optional(),
+	relativePhone: z.string().trim().optional(),
+	relativeRelation: z.string().trim().optional(),
 });

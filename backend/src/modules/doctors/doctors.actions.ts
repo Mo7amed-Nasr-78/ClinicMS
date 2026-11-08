@@ -1,8 +1,10 @@
 import bcrypt from "bcryptjs";
 
 import type { ClinicId } from "../clinics/clinics.actions";
-import { db } from "../../prisma/db.ts";
-import { Roles, Status } from "../../prisma/enums.ts";
+import { db } from "../../../prisma/db.ts";
+import { Roles, Status } from "../../../prisma/enums.ts";
+import { buildDoctorWhere } from "./doctor-filters.ts";
+import type { DoctorFilters } from "./doctor-filters.ts";
 import type { CreateDoctorDto } from "./DTOs/createDoctor.dto.ts";
 import type { UpdateDoctorDto } from "./DTOs/updateDoctor.dto.ts";
 
@@ -30,9 +32,12 @@ export function findDoctorAvailabilityProfile(
 	});
 }
 
-export function findAllDoctors(clinicId: ClinicId) {
+export function findAllDoctors(
+	clinicId: ClinicId,
+	filters: DoctorFilters = {},
+) {
 	return db.doctor.findMany({
-		where: { clinicId },
+		where: buildDoctorWhere(clinicId, filters),
 		select: {
 			id: true,
 			specialty: true,
@@ -70,7 +75,7 @@ export async function createDoctor(input: CreateDoctorDto, clinicId: ClinicId) {
 				email: input.email,
 				password: passwordHash,
 				phone: input.phone ?? null,
-				role: Roles.DOCTOR,
+				role: Roles.doctor,
 			},
 			select: { id: true },
 		});
@@ -82,7 +87,7 @@ export async function createDoctor(input: CreateDoctorDto, clinicId: ClinicId) {
 				bio: "",
 				consultationDuration: input.consultationDuration,
 				consultationFee: String(input.consultationFee),
-				status: Status.ACTIVE,
+				status: Status.active,
 				userId: user.id,
 				clinicId,
 			},
@@ -159,12 +164,12 @@ export async function deactivateDoctor(
 	return db.$transaction(async (transaction) => {
 		await transaction.user.update({
 			where: { id: userId as UserId },
-			data: { status: Status.INACTIVE },
+			data: { status: Status.inActive },
 		});
 
 		return transaction.doctor.update({
 			where: { id: doctorId as DoctorId, clinicId },
-			data: { status: Status.INACTIVE },
+			data: { status: Status.inActive },
 			select: {
 				id: true,
 				specialty: true,

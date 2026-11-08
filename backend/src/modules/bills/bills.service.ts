@@ -1,9 +1,10 @@
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
-import { bill_Status } from "../../prisma/enums.ts";
+import { bill_Status } from "../../../prisma/enums.ts";
 import { findClinicIdForUser } from "../clinics/clinics.actions.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import {
@@ -13,11 +14,13 @@ import {
 	findBillById,
 	findBillsByClinicId,
 	findPatientForBill,
+	recordBillPayment,
 	updateBillById,
 } from "./bills.actions.ts";
 import type { BillStatus, PatientId } from "./bills.actions.ts";
 import type { CreateBillDto } from "./DTOs/createBill.dto.ts";
 import type { UpdateBillDto } from "./DTOs/updateBill.dto.ts";
+import type { RecordBillPaymentDto } from "./DTOs/recordBillPayment.dto.ts";
 
 @Injectable()
 export class BillsService {
@@ -81,6 +84,29 @@ export class BillsService {
 			throw new NotFoundException("Bill not found");
 		}
 		return deleteBillById(clinicId, billId);
+	}
+
+	async recordPayment(
+		userId: string,
+		billId: string,
+		input: RecordBillPaymentDto,
+	) {
+		const clinicId = await this.getClinicId(userId);
+		const result = await recordBillPayment(
+			clinicId,
+			billId,
+			input.method,
+			userId,
+		);
+		if (result.status === "not_found") {
+			throw new NotFoundException("Bill not found");
+		}
+		if (result.status === "not_unpaid") {
+			throw new ConflictException(
+				"Only an unpaid bill can be paid",
+			);
+		}
+		return result.payment;
 	}
 
 	private async getClinicId(userId: string): Promise<ClinicId> {

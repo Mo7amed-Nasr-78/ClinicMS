@@ -97,12 +97,6 @@ export function WaitingPatientsCard() {
 									href={`/dashboard/patients/${appointment.patient.id}`}
 									className="group flex items-center gap-3 py-3 transition-colors hover:bg-surface-2 px-4 rounded-xl"
 								>
-									{/* <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-brand">
-										<CalendarClock
-											className="size-4"
-											aria-hidden="true"
-										/>
-									</span> */}
 									<span className="min-w-0 flex-1">
 										<span className="block truncate text-sm font-medium text-ink group-hover:text-brand">
 											{patientName(appointment.patient)}
@@ -133,7 +127,7 @@ export function WaitingPatientsCard() {
 											className="size-3"
 											aria-hidden="true"
 										/>
-										{formatTime(appointment.startTime)}
+										{formatTime(appointment.startAt)}
 									</span>
 									<ArrowUpRight
 										className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-brand"

@@ -1,9 +1,13 @@
-import { db, type PrismaTransaction } from "../../prisma/db.ts";
+import { db, type PrismaTransaction } from "../../../prisma/db.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateAppointmentDto } from "./DTOs/createAppointment.dto.ts";
 import type { UpdateAppointmentDto } from "./DTOs/updateAppointment.dto.ts";
 import { Temporal } from "temporal-polyfill";
-import { Appointment_Source, appointment_Status } from "../../prisma/enums.ts";
+import {
+	Appointment_Source,
+	appointment_Status,
+	type AppointmentStatus,
+} from "../../../prisma/enums.ts";
 
 const appointmentSelect = {
 	id: true,
@@ -31,7 +35,7 @@ const appointmentSelect = {
 } as const;
 
 export type AppointmentId = string;
-export type AppointmentStatus = string;
+export type { AppointmentStatus };
 export type DoctorId = string;
 export type PatientId = string;
 export type VisitTypeId = string;
@@ -246,6 +250,27 @@ export function findDoctorAppointmentsForDate(
 		);
 }
 
+export function findPatientAppointmentsForDate(
+	clinicId: ClinicId,
+	patientId: string,
+	appointmentDate: string,
+	client: OrmContext = db,
+) {
+	return client.appointment.findMany({
+		where: {
+			clinicId,
+			patientId: patientId as PatientId,
+			appointmentDate: toDatabaseDate(appointmentDate),
+			status: { not: appointment_Status.cancelled },
+		},
+		select: {
+			doctorId: true,
+			startAt: true,
+			endAt: true,
+		},
+	});
+}
+
 export async function findDoctorDashboardStats(
 	clinicId: ClinicId,
 	doctorId: DoctorId,
@@ -300,7 +325,7 @@ export async function findDoctorDashboardStats(
 						dateFromInstant(nextMonthStart, timeZone),
 					),
 				},
-				status: appointment_Status.NO_SHOW,
+				status: appointment_Status.noShow,
 			},
 		}),
 	]);
@@ -317,7 +342,7 @@ export async function findDoctorDashboardStats(
 						dateFromInstant(tomorrowStart, timeZone),
 					),
 				},
-				status: appointment_Status.CHECKED_IN,
+				status: appointment_Status.checkedIn,
 			},
 			select: {
 				id: true,
@@ -415,8 +440,8 @@ export function createAppointment(
 				appointmentDate: toDatabaseDate(input.appointmentDate),
 				startAt: input.startTime,
 				endAt: input.endTime,
-				status: input.status ?? appointment_Status.SCHEDULED,
-				source: input.source ?? Appointment_Source.RECEPTION,
+				status: input.status ?? appointment_Status.scheduled,
+				source: input.source ?? Appointment_Source.reception,
 				reason: input.reason,
 				notes: input.notes,
 				createdBy: createdBy as UserId,
@@ -430,6 +455,7 @@ export function updateAppointmentById(
 	clinicId: ClinicId,
 	appointmentId: string,
 	input: UpdateAppointmentDto,
+	updatedBy: string,
 	client: OrmContext = db,
 ) {
 	const updateData = {
@@ -452,6 +478,20 @@ export function updateAppointmentById(
 			endAt: input.endTime,
 		}),
 		...(input.status !== undefined && { status: input.status }),
+		...(input.status === appointment_Status.checkedIn && {
+			checkedInAt: new Date(),
+		}),
+		...(input.status === appointment_Status.inProgress && {
+			startedAt: new Date(),
+		}),
+		...(input.status === appointment_Status.completed && {
+			completedAt: new Date(),
+		}),
+		...(input.status === appointment_Status.cancelled && {
+			cancelledAt: new Date(),
+			cancelledBy: updatedBy as UserId,
+			cancelReason: null,
+		}),
 		...(input.source !== undefined && { source: input.source }),
 		...(input.reason !== undefined && { reason: input.reason }),
 		...(input.notes !== undefined && { notes: input.notes }),
@@ -464,6 +504,43 @@ export function updateAppointmentById(
 			select: appointmentSelect,
 		})
 		.then(appointmentWithDateOnly);
+}
+
+export function cancelAppointmentById(
+	clinicId: ClinicId,
+	appointmentId: string,
+	cancelReason: string,
+	cancelledBy: string,
+) {
+	return db.appointment
+		.update({
+			where: { id: appointmentId as AppointmentId, clinicId },
+			data: {
+				status: appointment_Status.cancelled,
+				cancelReason,
+				cancelledAt: new Date(),
+				cancelledBy: cancelledBy as UserId,
+			},
+			select: appointmentSelect,
+		})
+		.then(appointmentWithDateOnly);
+}
+
+export function completeAppointmentById(
+	clinicId: ClinicId,
+	appointmentId: string,
+) {
+	return db.appointment.updateMany({
+		where: {
+			id: appointmentId as AppointmentId,
+			clinicId,
+			status: appointment_Status.inProgress,
+		},
+		data: {
+			status: appointment_Status.completed,
+			completedAt: new Date(),
+		},
+	});
 }
 
 export function deleteAppointmentById(

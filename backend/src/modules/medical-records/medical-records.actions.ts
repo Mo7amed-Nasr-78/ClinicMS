@@ -1,4 +1,4 @@
-import { db } from "../../prisma/db.ts";
+import { db } from "../../../prisma/db.ts";
 import type { ClinicId } from "../clinics/clinics.actions.ts";
 import type { CreateMedicalRecordDto } from "./DTOs/createMedicalRecord.dto.ts";
 import type { UpdateMedicalRecordDto } from "./DTOs/updateMedicalRecord.dto.ts";

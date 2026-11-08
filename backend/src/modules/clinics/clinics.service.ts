@@ -28,6 +28,8 @@ import {
 	findClinicTimezone,
 } from "../appointments/appointments.actions";
 import { findUserById } from "../users/users.actions";
+import { parseDoctorFilters } from "../doctors/doctor-filters";
+import type { DoctorFiltersQuery } from "../doctors/doctor-filters";
 
 function getClinicDateRange(date: Temporal.PlainDate, timeZone: string) {
 	const start = date.toZonedDateTime({
@@ -144,12 +146,18 @@ export class ClinicsService {
 		clinicId: string,
 		page = 1,
 		limit = 20,
+		query: DoctorFiltersQuery = {},
 	) {
 		const ownedClinicId = await this.getClinicIdForRequest(
 			ownerId,
 			clinicId,
 		);
-		return findDoctorsByClinicId(ownedClinicId, page, limit);
+		return findDoctorsByClinicId(
+			ownedClinicId,
+			page,
+			limit,
+			parseDoctorFilters(query),
+		);
 	}
 
 	async findPatients(

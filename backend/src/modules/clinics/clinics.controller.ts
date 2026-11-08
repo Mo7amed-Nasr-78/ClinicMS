@@ -22,6 +22,7 @@ import { RequirePermissions } from "../../authorization/decorators/require-permi
 import { Permission } from "../../authorization/enums/permission.enum.ts";
 import { CreateClinicDto } from "./DTOs/createClinic.dto";
 import { UpdateClinicDto } from "./DTOs/updateClinic.dto";
+import type { DoctorFiltersQuery } from "../doctors/doctor-filters";
 import { ClinicsService } from "./clinics.service";
 
 const allowedLogoTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -64,14 +65,15 @@ export class ClinicsController {
 	findDoctors(
 		@Req() request: AuthenticatedRequest,
 		@Param("clinicId") clinicId: string,
-		@Query("page") page?: string,
-		@Query("limit") limit?: string,
+		@Query()
+		query: DoctorFiltersQuery & { page?: string; limit?: string },
 	) {
 		return this.clinicsService.findDoctors(
 			request.user.sub,
 			clinicId,
-			page ? Number(page) : 1,
-			limit ? Number(limit) : 20,
+			query.page ? Number(query.page) : 1,
+			query.limit ? Number(query.limit) : 20,
+			query,
 		);
 	}
 

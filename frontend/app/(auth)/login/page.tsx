@@ -4,10 +4,11 @@ import { FormEvent, useState } from "react";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { Logomark } from "@/components/shared/Logomark";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { useAccessTokenStore } from "@/stores/accessTokenStore";
 import { useClinicStore } from "@/stores/clinicStore";
 
 /* ------------------------------------------------------------------ */
@@ -40,6 +41,17 @@ export default function Login() {
 			}
 
 			try {
+				const session = await getSession();
+				if (!session?.accessToken) {
+					toast.error(
+						"Signed in, but unable to retrieve your access token.",
+					);
+					return;
+				}
+
+				useAccessTokenStore
+					.getState()
+					.setAccessToken(session.accessToken);
 				const clinic = await fetchMyClinic();
 				toast.success("Signed in successfully.");
 				router.replace(clinic ? "/dashboard" : "/onboarding");

@@ -3,28 +3,23 @@
 import type { ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { hasPermission } from "@/lib/permissions";
-import { useClinicStore } from "@/stores/clinicStore";
 
 type PermissionGateProps = {
 	permissions: readonly string[];
 	mode?: "all" | "any";
 	children: ReactNode;
+	fallback?: ReactNode;
 };
 
 export function PermissionGate({
 	permissions,
 	mode = "all",
 	children,
+	fallback = null,
 }: PermissionGateProps) {
 	const { data: session, status } = useSession();
-	const clinicPermissions = useClinicStore(
-		(state) => state.user?.permissions,
-	);
 	if (status !== "authenticated") return null;
-	const userPermissions =
-		session.user?.permissions?.length
-			? session.user.permissions
-			: clinicPermissions;
+	const userPermissions = session.user?.permissions;
 
 	const allowed =
 		mode === "any"
@@ -35,5 +30,5 @@ export function PermissionGate({
 					hasPermission(userPermissions, permission),
 				);
 
-	return allowed ? children : null;
+	return allowed ? children : fallback;
 }

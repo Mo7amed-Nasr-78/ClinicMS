@@ -4,7 +4,6 @@ import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Activity,
-	CircleCheck,
 	RefreshCw,
 	Server,
 	WifiOff,
@@ -61,15 +60,6 @@ async function checkBackend(): Promise<BackendHealth> {
 		responseMs: Math.round(performance.now() - startedAt),
 		checkedAt: new Date().toISOString(),
 	};
-}
-
-function formatTime(value?: string) {
-	if (!value) return "Waiting for the first check";
-	return new Intl.DateTimeFormat(undefined, {
-		hour: "numeric",
-		minute: "2-digit",
-		second: "2-digit",
-	}).format(new Date(value));
 }
 
 function BackendUnavailableScreen({
@@ -209,156 +199,13 @@ export function useBackendAvailability() {
 }
 
 export function BackendStatusPage() {
-	const { state, health, isChecking, retry } = useBackendAvailability();
-	const isOnline = state === "online";
+	const { state, isChecking, retry } = useBackendAvailability();
+	if (state !== "offline") return null;
 
 	return (
-		<main className="min-h-screen bg-bg px-5 py-8 text-ink sm:px-8 sm:py-12">
-			<div className="mx-auto max-w-4xl">
-				<header className="flex items-center justify-between border-b border-line pb-5">
-					<div className="flex items-center gap-3">
-						<div className="flex size-10 items-center justify-center rounded-full bg-brand/10 text-brand">
-							<Server
-								aria-hidden="true"
-								size={19}
-							/>
-						</div>
-						<div>
-							<p className="font-mono text-xs uppercase tracking-[0.12em] text-ink-muted">
-								Wardline / System status
-							</p>
-							<p className="text-sm font-semibold">
-								Clinic management
-							</p>
-						</div>
-					</div>
-					<span className="font-mono text-xs text-ink-faint">
-						LIVE
-					</span>
-				</header>
-
-				<section className="py-12 sm:py-16">
-					<div className="flex flex-wrap items-center gap-3">
-						<div
-							className={`flex size-11 items-center justify-center rounded-full ${
-								isOnline
-									? "bg-brand/10 text-brand"
-									: "bg-surface-2 text-ink-muted"
-							}`}
-						>
-							{isOnline ? (
-								<CircleCheck
-									aria-hidden="true"
-									size={21}
-								/>
-							) : (
-								<RefreshCw
-									aria-hidden="true"
-									size={19}
-									className={
-										isChecking
-											? "animate-spin"
-											: undefined
-									}
-								/>
-							)}
-						</div>
-						<div>
-							<p className="font-mono text-xs uppercase tracking-[0.12em] text-ink-muted">
-								Current status
-							</p>
-							<p className="text-sm font-semibold">
-								{isOnline
-									? "All systems operational"
-									: "Checking backend connection"}
-							</p>
-						</div>
-					</div>
-
-					<h1 className="mt-8 max-w-2xl font-serif text-5xl leading-[1.05] sm:text-6xl">
-						Service status
-					</h1>
-					<p className="mt-4 max-w-xl text-base leading-7 text-ink-muted">
-						Live reachability for the clinic API and its
-						database.
-					</p>
-
-					<div className="mt-10 border-y border-line">
-						<div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-line py-5">
-							<div>
-								<p className="text-sm font-semibold">
-									Backend API
-								</p>
-								<p className="mt-1 text-sm text-ink-muted">
-									Health endpoint response
-								</p>
-							</div>
-							<p className="font-mono text-sm">
-								{isOnline
-									? "Operational"
-									: "Checking"}
-							</p>
-						</div>
-						<div className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-line py-5">
-							<div>
-								<p className="text-sm font-semibold">
-									Database
-								</p>
-								<p className="mt-1 text-sm text-ink-muted">
-									PostgreSQL connection
-								</p>
-							</div>
-							<p className="font-mono text-sm">
-								{health?.database ===
-								"connected"
-									? "Connected"
-									: "Checking"}
-							</p>
-						</div>
-						<div className="grid grid-cols-[1fr_auto] items-center gap-4 py-5">
-							<div>
-								<p className="text-sm font-semibold">
-									Response time
-								</p>
-								<p className="mt-1 text-sm text-ink-muted">
-									Most recent health check
-								</p>
-							</div>
-							<p className="font-mono text-sm">
-								{health
-									? `${health.responseMs} ms`
-									: "—"}
-							</p>
-						</div>
-					</div>
-
-					<div className="mt-7 flex flex-wrap items-center gap-4">
-						<button
-							type="button"
-							onClick={retry}
-							disabled={isChecking}
-							className="inline-flex min-h-11 items-center gap-2 rounded-md bg-brand px-4 py-2.5 text-sm font-semibold text-chip transition-colors hover:bg-brand-deep disabled:cursor-wait disabled:opacity-70"
-						>
-							<RefreshCw
-								aria-hidden="true"
-								size={16}
-								className={
-									isChecking
-										? "animate-spin"
-										: undefined
-								}
-							/>
-							{isChecking
-								? "Checking"
-								: "Check again"}
-						</button>
-						<p className="font-mono text-xs text-ink-faint">
-							Last checked{" "}
-							{formatTime(health?.checkedAt)}
-						</p>
-					</div>
-				</section>
-			</div>
-		</main>
+		<BackendUnavailableScreen
+			isChecking={isChecking}
+			retry={retry}
+		/>
 	);
 }
