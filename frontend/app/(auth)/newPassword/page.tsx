@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import {
 	Lock,
 	Eye,
@@ -13,7 +13,13 @@ import { Logomark } from "@/components/shared/Logomark";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import Link from "next/link";
 
-const REQUIREMENTS = [
+type PasswordRequirement = {
+	id: string;
+	label: string;
+	test: (value: string) => boolean;
+};
+
+const REQUIREMENTS: PasswordRequirement[] = [
 	{
 		id: "length",
 		label: "At least 8 characters",
@@ -44,7 +50,7 @@ export default function NewPassword() {
 	const passwordsMatch =
 		confirmPassword.length > 0 && password === confirmPassword;
 
-	const handleSubmit = (e) => {
+	const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		setError("");
 

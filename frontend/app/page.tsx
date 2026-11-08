@@ -165,14 +165,21 @@ const PRICING = [
 	},
 ];
 
-const INITIAL_QUEUE = [
+type QueueStatus = "waiting" | "in-room" | "complete";
+type QueueItem = {
+	time: string;
+	name: string;
+	status: QueueStatus;
+};
+
+const INITIAL_QUEUE: QueueItem[] = [
 	{ time: "09:00", name: "Priya Nandakumar", status: "in-room" },
 	{ time: "09:20", name: "Marcus Toussaint", status: "waiting" },
 	{ time: "09:40", name: "Elena Rousseva", status: "waiting" },
 	{ time: "10:00", name: "James Okafor", status: "complete" },
 ];
 
-const STATUS_META = {
+const STATUS_META: Record<QueueStatus, { label: string; dot: string }> = {
 	waiting: { label: "Waiting", dot: "bg-gold" },
 	"in-room": { label: "In room", dot: "bg-accent animate-blip" },
 	complete: { label: "Complete", dot: "bg-brand" },
@@ -193,7 +200,7 @@ const THEME_STYLES = {
 	},
 } as const;
 
-function nextStatus(s) {
+function nextStatus(s: QueueStatus): QueueStatus {
 	if (s === "waiting") return "in-room";
 	if (s === "in-room") return "complete";
 	return "waiting";
